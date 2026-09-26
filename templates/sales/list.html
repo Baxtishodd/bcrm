@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Takliflar — BCRM{% endblock %}
+{% block heading %}Tijorat takliflari{% endblock %}
+
+{% block content %}
+<nav class="section-tabs">
+    <a class="active" href="{% url 'sales:list' %}">Takliflar</a>
+    <a href="{% url 'sales:order-list' %}">Buyurtmalar</a>
+</nav>
+<section class="page-actions">
+    <form class="search" method="get">
+        <input type="search" name="q" value="{{ query }}" placeholder="Taklif raqami yoki mijoz">
+        <button class="button button-secondary" type="submit">Qidirish</button>
+    </form>
+    <a class="button" href="{% url 'sales:create' %}">Yangi taklif</a>
+</section>
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Raqam</th><th>Mijoz</th><th>Holat</th><th>Amal qilish</th><th>Jami</th><th>Muallif</th></tr></thead>
+            <tbody>
+            {% for quotation in quotations %}
+            <tr>
+                <td><a class="table-link" href="{% url 'sales:detail' quotation.public_id %}">{{ quotation.number }}</a></td>
+                <td>{{ quotation.customer }}</td>
+                <td><span class="badge">{{ quotation.get_status_display }}</span></td>
+                <td>{{ quotation.valid_until|date:"d.m.Y"|default:"—" }}</td>
+                <td>{{ quotation.total }} {{ quotation.currency }}</td>
+                <td>{% if quotation.created_by %}{{ quotation.created_by.get_full_name|default:quotation.created_by.email }}{% else %}—{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="empty">Takliflar topilmadi.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

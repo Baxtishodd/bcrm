@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ order.number }} — BCRM{% endblock %}
+{% block heading %}Buyurtma {{ order.number }}{% endblock %}
+
+{% block content %}
+<section class="panel detail-card">
+    <div class="panel-heading">
+        <div><p class="eyebrow">{{ order.get_status_display }}</p><h2>{{ order.customer }}</h2></div>
+        <a class="button button-secondary" href="{% url 'sales:order-update' order.public_id %}">Holat va to'lovni yangilash</a>
+    </div>
+    <dl class="details compact-details">
+        <div><dt>Buyurtma sanasi</dt><dd>{{ order.order_date|date:"d.m.Y" }}</dd></div>
+        <div><dt>Yetkazish sanasi</dt><dd>{{ order.delivery_date|date:"d.m.Y"|default:"—" }}</dd></div>
+        <div><dt>Taklif</dt><dd>{% if order.quotation %}<a class="table-link" href="{% url 'sales:detail' order.quotation.public_id %}">{{ order.quotation.number }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Mas'ul</dt><dd>{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.email }}{% else %}—{% endif %}</dd></div>
+        <div><dt>Jami</dt><dd>{{ order.total }}{% if order.quotation %} {{ order.quotation.currency }}{% endif %}</dd></div>
+        <div><dt>Avans</dt><dd>{{ order.advance_amount }}</dd></div>
+        <div><dt>To'langan</dt><dd>{{ order.paid_amount }}</dd></div>
+        <div><dt>Qoldiq</dt><dd>{{ order.balance }}</dd></div>
+    </dl>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Mahsulot</th><th>Miqdor</th><th>Narx</th><th>Jami</th></tr></thead>
+        <tbody>{% for line in order.lines.all %}<tr><td>{{ line.product }}</td><td>{{ line.quantity }} {{ line.product.get_unit_display }}</td><td>{{ line.unit_price }}</td><td>{{ line.line_total }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">Buyurtma qatorlari yo'q.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</section>
+{% endblock %}

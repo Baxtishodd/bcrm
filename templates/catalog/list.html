@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Mahsulotlar — BCRM{% endblock %}
+{% block heading %}Textile katalog{% endblock %}
+
+{% block content %}
+<section class="page-actions">
+    <form class="search" method="get">
+        <input type="search" name="q" value="{{ query }}" placeholder="Artikul yoki mahsulot nomi">
+        <button class="button button-secondary" type="submit">Qidirish</button>
+    </form>
+    <a class="button" href="{% url 'catalog:create' %}">Yangi mahsulot</a>
+</section>
+<section class="product-grid">
+    {% for product in products %}
+    <a class="product-card" href="{% url 'catalog:detail' product.public_id %}">
+        <div class="product-image">
+            {% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.name }}">
+            {% else %}<span>{{ product.article|slice:":2"|upper }}</span>{% endif %}
+        </div>
+        <div>
+            <p class="eyebrow">{{ product.article }}</p>
+            <h2>{{ product.name }}</h2>
+            <p>{{ product.fabric|default:"Mato ko'rsatilmagan" }} · {{ product.get_unit_display }}</p>
+        </div>
+    </a>
+    {% empty %}
+    <div class="panel empty-state"><p>Mahsulotlar topilmadi.</p></div>
+    {% endfor %}
+</section>
+{% endblock %}
+

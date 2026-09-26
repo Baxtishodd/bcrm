@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Vazifalar — BCRM{% endblock %}
+{% block heading %}Vazifalar va eslatmalar{% endblock %}
+
+{% block content %}
+<section class="page-actions">
+    <form class="search" method="get">
+        <input type="search" name="q" value="{{ query }}" placeholder="Vazifa, lead yoki mijoz">
+        <select name="status">
+            <option value="open"{% if status == "open" %} selected{% endif %}>Ochiq</option>
+            <option value="completed"{% if status == "completed" %} selected{% endif %}>Bajarilgan</option>
+            <option value="all"{% if status == "all" %} selected{% endif %}>Barchasi</option>
+        </select>
+        <button class="button button-secondary" type="submit">Ko'rsatish</button>
+    </form>
+    <a class="button" href="{% url 'tasks:create' %}">Yangi vazifa</a>
+</section>
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Vazifa</th><th>Lead / mijoz</th><th>Muddat</th><th>Mas'ul</th><th>Holat</th><th></th></tr></thead>
+            <tbody>
+            {% for task in tasks %}
+            <tr{% if not task.completed_at and task.due_at and task.due_at < now %} class="row-overdue"{% endif %}>
+                <td><strong>{{ task.subject }}</strong><br><small>{{ task.get_activity_type_display }}</small></td>
+                <td><a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.lead.title }}</a><br><small>{{ task.lead.customer|default:"—" }}</small></td>
+                <td>{{ task.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</td>
+                <td>{% if task.assigned_to %}{{ task.assigned_to.get_full_name|default:task.assigned_to.email }}{% else %}—{% endif %}</td>
+                <td>
+                    {% if task.completed_at %}<span class="badge badge-success">Bajarilgan</span>
+                    {% elif task.due_at and task.due_at < now %}<span class="badge badge-danger">Kechikkan</span>
+                    {% else %}<span class="badge">Ochiq</span>{% endif %}
+                </td>
+                <td>
+                    {% if not task.completed_at %}
+                    <form method="post" action="{% url 'tasks:complete' task.public_id %}">
+                        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="button button-small" type="submit">Bajarildi</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}<tr><td colspan="6" class="empty">Vazifalar topilmadi.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

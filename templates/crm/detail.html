@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lead.title }} — BCRM{% endblock %}
+{% block heading %}{{ lead.title }}{% endblock %}
+
+{% block content %}
+<section class="detail-grid">
+    <article class="panel detail-card">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Lead</p><h2>{{ lead.get_status_display }}</h2></div>
+            <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">Tahrirlash</a>
+        </div>
+        <dl class="details">
+            <div><dt>Mijoz</dt><dd>{{ lead.customer|default:"—" }}</dd></div>
+            <div><dt>Kontakt</dt><dd>{{ lead.contact|default:"—" }}</dd></div>
+            <div><dt>Bosqich</dt><dd>{{ lead.stage|default:"—" }}</dd></div>
+            <div><dt>Qiymat</dt><dd>{{ lead.estimated_value }} {{ lead.currency }}</dd></div>
+            <div><dt>Manba</dt><dd>{{ lead.source|default:"—" }}</dd></div>
+            <div><dt>Mas'ul</dt><dd>{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.email }}{% else %}—{% endif %}</dd></div>
+            <div><dt>Keyingi harakat</dt><dd>{{ lead.next_action_at|date:"d.m.Y H:i"|default:"—" }}</dd></div>
+            <div class="wide"><dt>Izoh</dt><dd>{{ lead.description|default:"—"|linebreaksbr }}</dd></div>
+        </dl>
+    </article>
+
+    <article class="panel detail-card">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Timeline</p><h2>Faoliyatlar</h2></div>
+            <a class="button" href="{% url 'crm:activity-create' lead.public_id %}">Faoliyat qo'shish</a>
+        </div>
+        <div class="stack-list">
+            {% for activity in lead.activities.all %}
+            <div class="stack-item">
+                <strong>{{ activity.subject }}</strong>
+                <span>{{ activity.get_activity_type_display }}</span>
+                <small>{{ activity.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</small>
+                {% if activity.completed_at %}<span class="badge badge-success">Bajarilgan</span>{% else %}
+                <form method="post" action="{% url 'tasks:complete' activity.public_id %}">
+                    {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                    <button class="link-button" type="submit">Bajarildi deb belgilash</button>
+                </form>{% endif %}
+            </div>
+            {% empty %}
+            <p class="empty">Faoliyatlar hali yo'q.</p>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if organization %}
+<section class="stats">
+    <article><span>Ochiq leadlar</span><strong>{{ open_lead_count }}</strong><small>Jami: {{ lead_count }}</small></article>
+    <article><span>Mijozlar</span><strong>{{ customer_count }}</strong></article>
+    <article><span>Pipeline qiymati</span><strong>{{ pipeline_value }}</strong><small>UZS</small></article>
+    <article><span>Tijorat takliflari</span><strong>{{ quotation_count }}</strong></article>
+    <article><span>Buyurtmalar</span><strong>{{ order_count }}</strong><small>{{ order_value }} UZS</small></article>
+    <article><span>Kechikkan vazifalar</span><strong>{{ overdue_task_count }}</strong></article>
+</section>
+
+<section class="dashboard-grid">
+<article class="panel">
+    <div class="panel-heading">
+        <div><p class="eyebrow">CRM</p><h2>So'nggi leadlar</h2></div>
+        <a class="button" href="{% url 'crm:create' %}">Yangi lead</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nomi</th><th>Mijoz</th><th>Holat</th>
+                    <th>Qiymat</th><th>Mas'ul</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for lead in recent_leads %}
+                <tr>
+                    <td>
+                        <a class="table-link" href="{% url 'crm:detail' lead.public_id %}">
+                            {{ lead.title }}
+                        </a>
+                    </td>
+                    <td>{{ lead.customer|default:"—" }}</td>
+                    <td><span class="badge">{{ lead.get_status_display }}</span></td>
+                    <td>{{ lead.estimated_value }} {{ lead.currency }}</td>
+                    <td>{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.email }}{% else %}—{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="empty">Hali leadlar yo'q.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</article>
+<article class="panel">
+    <div class="panel-heading">
+        <div><p class="eyebrow">Reja</p><h2>Yaqin vazifalar</h2></div>
+        <a class="button button-secondary" href="{% url 'tasks:list' %}">Barchasi</a>
+    </div>
+    <div class="stack-list">
+        {% for task in upcoming_tasks %}
+        <div class="stack-item">
+            <a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.subject }}</a>
+            <span>{{ task.lead.title }}</span>
+            <small>{{ task.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</small>
+        </div>
+        {% empty %}<p class="empty">Ochiq vazifalar yo'q.</p>{% endfor %}
+    </div>
+</article>
+</section>
+{% else %}
+<section class="panel empty-state">
+    <h2>Korxona biriktirilmagan</h2>
+    <p>Admin panelida Organization va Membership yarating.</p>
+    <a class="button" href="/admin/organizations/organization/add/">
+        Korxona qo'shish
+    </a>
+</section>
+{% endif %}
+{% endblock %}

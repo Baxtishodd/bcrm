@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Leadlar — BCRM{% endblock %}
+{% block heading %}Savdo pipeline{% endblock %}
+
+{% block content %}
+<section class="page-actions">
+    <form class="search" method="get">
+        <input type="search" name="q" value="{{ query }}" placeholder="Lead yoki mijoz nomi">
+        <button class="button button-secondary" type="submit">Qidirish</button>
+    </form>
+    <a class="button" href="{% url 'crm:create' %}">Yangi lead</a>
+</section>
+
+<section class="kanban">
+    {% for status, label, leads in columns %}
+    <div class="kanban-column">
+        <div class="kanban-heading">
+            <strong>{{ label }}</strong><span>{{ leads|length }}</span>
+        </div>
+        <div class="kanban-body">
+            {% for lead in leads %}
+            <a class="lead-card" href="{% url 'crm:detail' lead.public_id %}">
+                <div class="lead-card-top">
+                    <strong>{{ lead.title }}</strong>
+                    <span class="priority priority-{{ lead.priority }}">{{ lead.get_priority_display }}</span>
+                </div>
+                <p>{{ lead.customer|default:"Mijoz biriktirilmagan" }}</p>
+                <div class="lead-card-meta">
+                    <span>{{ lead.estimated_value }} {{ lead.currency }}</span>
+                    <span>{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.email }}{% else %}—{% endif %}</span>
+                </div>
+            </a>
+            {% empty %}
+            <p class="kanban-empty">Lead yo'q</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}

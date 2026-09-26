@@ -1,0 +1,64 @@
+{% load static %}
+<!doctype html>
+<html lang="uz">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}BCRM{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{% url 'dashboard' %}">
+            BCRM<span>textile</span>
+        </a>
+        <nav>
+            <a{% if request.resolver_match.url_name == 'dashboard' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'dashboard' %}">Boshqaruv paneli</a>
+            <a{% if request.resolver_match.namespace == 'customers' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'customers:list' %}">Mijozlar</a>
+            <a{% if request.resolver_match.namespace == 'crm' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'crm:list' %}">Leadlar</a>
+            <a{% if request.resolver_match.namespace == 'tasks' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'tasks:list' %}">Vazifalar</a>
+            <a{% if request.resolver_match.namespace == 'catalog' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'catalog:list' %}">Mahsulotlar</a>
+            <a{% if request.resolver_match.namespace == 'sales' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'sales:list' %}">Savdo</a>
+            {% if user.is_staff %}
+            <a{% if request.resolver_match.namespace == 'admin' %} class="active" aria-current="page"{% endif %}
+               href="/admin/">Tizim sozlamalari</a>
+            {% endif %}
+        </nav>
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="logout" type="submit">Chiqish</button>
+        </form>
+        {% endif %}
+    </aside>
+    <main class="content">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">
+                    {% if organization %}{{ organization.name }}{% else %}BCRM{% endif %}
+                </p>
+                <h1>{% block heading %}Boshqaruv paneli{% endblock %}</h1>
+            </div>
+            <div class="user-chip">
+                {{ user.get_full_name|default:user.email }}
+            </div>
+        </header>
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="message message-{{ message.tags|default:'info' }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+</body>
+</html>

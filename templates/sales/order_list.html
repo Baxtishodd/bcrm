@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Buyurtmalar — BCRM{% endblock %}
+{% block heading %}Sotuv buyurtmalari{% endblock %}
+
+{% block content %}
+<nav class="section-tabs">
+    <a href="{% url 'sales:list' %}">Takliflar</a>
+    <a class="active" href="{% url 'sales:order-list' %}">Buyurtmalar</a>
+</nav>
+<section class="page-actions">
+    <form class="search" method="get">
+        <input type="search" name="q" value="{{ query }}" placeholder="Buyurtma raqami yoki mijoz">
+        <select name="status"><option value="">Barcha holatlar</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <button class="button button-secondary" type="submit">Qidirish</button>
+    </form>
+</section>
+<section class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>Raqam</th><th>Mijoz</th><th>Holat</th><th>Buyurtma</th><th>Yetkazish</th><th>Jami</th><th>To'lov</th><th>Mas'ul</th></tr></thead>
+    <tbody>
+    {% for order in orders %}<tr>
+        <td><a class="table-link" href="{% url 'sales:order-detail' order.public_id %}">{{ order.number }}</a></td>
+        <td>{{ order.customer }}</td><td><span class="badge">{{ order.get_status_display }}</span></td>
+        <td>{{ order.order_date|date:"d.m.Y" }}</td><td>{{ order.delivery_date|date:"d.m.Y"|default:"—" }}</td>
+        <td>{{ order.total }}{% if order.quotation %} {{ order.quotation.currency }}{% endif %}</td>
+        <td>{{ order.payment_status }}</td>
+        <td>{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.email }}{% else %}—{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="8" class="empty">Buyurtmalar topilmadi. Qabul qilingan taklifdan buyurtma yarating.</td></tr>{% endfor %}
+    </tbody>
+</table></div></section>
+{% endblock %}

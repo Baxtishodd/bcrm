@@ -1,0 +1,45 @@
+[project]
+name = "bcrm"
+version = "0.1.0"
+description = "Textile-first CRM MVP"
+requires-python = ">=3.12"
+dependencies = [
+  "Django>=5.2,<5.3",
+  "djangorestframework>=3.16,<4",
+  "django-filter>=25.1,<26",
+  "drf-spectacular>=0.28,<1",
+  "celery>=5.6,<6",
+  "redis>=6,<7",
+  "PyMySQL>=1.1,<2",
+  "Pillow>=11,<13",
+  "python-dotenv>=1.1,<2",
+  "whitenoise>=6.9,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "pytest-django>=4.11,<5",
+  "factory-boy>=3.3,<4",
+  "ruff>=0.12,<1",
+]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["apps*", "config*"]
+exclude = ["static*", "templates*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["**/migrations/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

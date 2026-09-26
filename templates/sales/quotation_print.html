@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="uz"><head><meta charset="utf-8"><title>{{ quotation.number }}</title>
+<style>
+body{font:14px Arial,sans-serif;color:#172033;max-width:900px;margin:36px auto;padding:0 24px}.head{display:flex;justify-content:space-between;border-bottom:2px solid #0f766e;padding-bottom:20px;margin-bottom:28px}h1{margin:0;color:#0f766e}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border:1px solid #d7dee8;padding:10px;text-align:left}th{background:#f1f5f9}.totals{margin-left:auto;margin-top:22px;width:360px}.totals div{display:flex;justify-content:space-between;padding:7px}.grand{font-size:18px;font-weight:bold;border-top:2px solid #172033}.terms{margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:20px}.actions{margin-bottom:20px}@media print{.actions{display:none}body{margin:0}}
+</style></head><body>
+<div class="actions"><button onclick="window.print()">Chop etish / PDF saqlash</button></div>
+<div class="head"><div><h1>{{ organization.name }}</h1><p>{{ organization.phone }}</p></div><div><strong>TIJORAT TAKLIFI</strong><p>№ {{ quotation.number }}</p><p>{{ quotation.created_at|date:"d.m.Y" }}</p></div></div>
+<p><strong>Mijoz:</strong> {{ quotation.customer.name }}</p>
+<table><thead><tr><th>№</th><th>Mahsulot</th><th>Miqdor</th><th>Narx</th><th>Jami</th></tr></thead><tbody>
+{% for line in quotation.lines.all %}<tr><td>{{ forloop.counter }}</td><td>{{ line.product }}{% if line.description %}<br><small>{{ line.description }}</small>{% endif %}</td><td>{{ line.quantity }} {{ line.product.get_unit_display }}</td><td>{{ line.unit_price }} {{ quotation.currency }}</td><td>{{ line.line_total }} {{ quotation.currency }}</td></tr>{% endfor %}
+</tbody></table>
+<div class="totals"><div><span>Oraliq jami</span><strong>{{ quotation.subtotal }}</strong></div><div><span>Chegirma ({{ quotation.discount_percent }}%)</span><strong>-{{ quotation.discount_amount }}</strong></div><div><span>Soliq ({{ quotation.tax_percent }}%)</span><strong>{{ quotation.tax_amount }}</strong></div><div class="grand"><span>Umumiy</span><strong>{{ quotation.total }} {{ quotation.currency }}</strong></div></div>
+<div class="terms"><div><strong>Yetkazish sharti</strong><p>{{ quotation.delivery_terms|default:"Kelishuv asosida" }}</p></div><div><strong>To'lov sharti</strong><p>{{ quotation.payment_terms|default:"Kelishuv asosida" }}</p></div></div>
+{% if quotation.notes %}<p><strong>Izoh:</strong> {{ quotation.notes|linebreaksbr }}</p>{% endif %}
+</body></html>

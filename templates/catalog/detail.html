@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} — BCRM{% endblock %}
+{% block heading %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<section class="detail-grid">
+    <article class="panel detail-card">
+        <div class="panel-heading">
+            <div><p class="eyebrow">{{ product.article }}</p><h2>Mahsulot</h2></div>
+            <a class="button button-secondary" href="{% url 'catalog:update' product.public_id %}">Tahrirlash</a>
+        </div>
+        <dl class="details">
+            <div><dt>Artikul</dt><dd>{{ product.article }}</dd></div>
+            <div><dt>Birlik</dt><dd>{{ product.get_unit_display }}</dd></div>
+            <div><dt>Mato</dt><dd>{{ product.fabric|default:"—" }}</dd></div>
+            <div><dt>Faol</dt><dd>{{ product.is_active|yesno:"Ha,Yo'q" }}</dd></div>
+            <div class="wide"><dt>Tavsif</dt><dd>{{ product.description|default:"—"|linebreaksbr }}</dd></div>
+        </dl>
+    </article>
+    <article class="panel detail-card">
+        <div class="panel-heading">
+            <div><p class="eyebrow">SKU</p><h2>Rang-o'lcham variantlari</h2></div>
+            <a class="button" href="{% url 'catalog:variant-create' product.public_id %}">Variant qo'shish</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Rang</th><th>O'lcham</th><th>SKU</th><th>Mijoz artikuli</th></tr></thead>
+                <tbody>
+                {% for variant in product.variants.all %}
+                <tr><td>{{ variant.color }}</td><td>{{ variant.size }}</td><td>{{ variant.sku|default:"—" }}</td><td>{{ variant.customer_article|default:"—" }}</td></tr>
+                {% empty %}
+                <tr><td colspan="4" class="empty">Variantlar hali yo'q.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}
+

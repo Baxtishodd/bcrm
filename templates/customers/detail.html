@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.name }} — BCRM{% endblock %}
+{% block heading %}{{ customer.name }}{% endblock %}
+
+{% block content %}
+<section class="detail-grid">
+    <article class="panel detail-card">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Mijoz</p><h2>Asosiy ma'lumotlar</h2></div>
+            <a class="button button-secondary" href="{% url 'customers:update' customer.public_id %}">Tahrirlash</a>
+        </div>
+        <dl class="details">
+            <div><dt>Turi</dt><dd>{{ customer.get_customer_type_display }}</dd></div>
+            <div><dt>STIR</dt><dd>{{ customer.tax_id|default:"—" }}</dd></div>
+            <div><dt>Telefon</dt><dd>{{ customer.phone|default:"—" }}</dd></div>
+            <div><dt>Telegram</dt><dd>{{ customer.telegram|default:"—" }}</dd></div>
+            <div><dt>Email</dt><dd>{{ customer.email|default:"—" }}</dd></div>
+            <div><dt>Manzil</dt><dd>{{ customer.address|default:"—" }}</dd></div>
+            <div><dt>Kredit limiti</dt><dd>{{ customer.credit_limit }} UZS</dd></div>
+            <div><dt>Mas'ul</dt><dd>{% if customer.owner %}{{ customer.owner.get_full_name|default:customer.owner.email }}{% else %}—{% endif %}</dd></div>
+        </dl>
+    </article>
+
+    <article class="panel detail-card">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Aloqa</p><h2>Kontaktlar</h2></div>
+            <a class="button" href="{% url 'customers:contact-create' customer.public_id %}">Kontakt qo'shish</a>
+        </div>
+        <div class="stack-list">
+            {% for contact in customer.contacts.all %}
+            <div class="stack-item">
+                <strong>{{ contact.full_name }}</strong>
+                <span>{{ contact.position|default:"Lavozim ko'rsatilmagan" }}</span>
+                <small>{{ contact.phone|default:contact.email|default:"—" }}</small>
+            </div>
+            {% empty %}
+            <p class="empty">Kontaktlar hali qo'shilmagan.</p>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endblock %}
