@@ -3,6 +3,9 @@
 Textile korxonalari uchun modulli CRM MVP. Birinchi bosqich mijozlar, leadlar,
 pipeline, textile katalogi, takliflar va rang-o'lcham matritsasini qamrab oladi.
 
+Loyihaning ustuvor vazifalari va yaqin sprintlari [ROADMAP.md](ROADMAP.md)
+faylida yuritiladi.
+
 ## Texnologiyalar
 
 - Python 3.12+
