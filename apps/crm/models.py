@@ -25,6 +25,13 @@ class PipelineStage(OrganizationScopedModel):
 
 
 class Lead(OrganizationScopedModel):
+    class BusinessDirection(models.TextChoices):
+        KNIT_FABRIC = "knit_fabric", "Trikotaj mato"
+        WEAVING = "weaving", "To'quvchilik"
+        YARN = "yarn", "Ip-kalava"
+        SEWING = "sewing", "Tikuvchilik va xizmatlar"
+        OTHER = "other", "Boshqa"
+
     class Status(models.TextChoices):
         NEW = "new", "Yangi"
         IN_PROGRESS = "in_progress", "Jarayonda"
@@ -37,6 +44,11 @@ class Lead(OrganizationScopedModel):
         HIGH = "high", "Yuqori"
 
     title = models.CharField(max_length=220)
+    business_direction = models.CharField(
+        max_length=20,
+        choices=BusinessDirection.choices,
+        default=BusinessDirection.OTHER,
+    )
     customer = models.ForeignKey(
         "customers.CustomerCompany",
         null=True,
@@ -61,6 +73,7 @@ class Lead(OrganizationScopedModel):
         choices=Status.choices,
         default=Status.NEW,
     )
+    kanban_position = models.PositiveIntegerField(default=0)
     priority = models.CharField(
         max_length=10,
         choices=Priority.choices,
@@ -85,7 +98,7 @@ class Lead(OrganizationScopedModel):
     description = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["kanban_position", "-created_at"]
         indexes = [
             models.Index(fields=["organization", "status"]),
             models.Index(fields=["organization", "assigned_to"]),
@@ -122,4 +135,3 @@ class Activity(OrganizationScopedModel):
 
     class Meta:
         ordering = ["completed_at", "due_at", "-created_at"]
-

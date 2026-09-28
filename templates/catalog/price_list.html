@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Joriy narxlar — BCRM{% endblock %}
+{% block heading %}Joriy mahsulot narxlari{% endblock %}
+
+{% block content %}
+<nav class="section-tabs">
+    <a href="{% url 'catalog:list' %}">Mahsulotlar</a>
+    <a class="active" href="{% url 'catalog:price-list' %}">Joriy narxlar</a>
+    <a href="{% url 'catalog:offer-list' %}">Taklif hujjatlari</a>
+</nav>
+<section class="page-actions">
+    <form class="search" method="get">
+        <input type="search" name="q" value="{{ query }}" placeholder="Artikul, mahsulot yoki mato turi">
+        <select name="category">
+            <option value="">Barcha kategoriyalar</option>
+            {% for value, label in category_choices %}
+            <option value="{{ value }}" {% if category == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="availability">
+            <option value="">Barcha ta'minot turlari</option>
+            {% for value, label in availability_choices %}
+            <option value="{{ value }}" {% if availability == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button class="button button-secondary" type="submit">Filtrlash</button>
+    </form>
+    <a class="button" href="{% url 'catalog:create' %}">Yangi mahsulot</a>
+</section>
+<section class="panel">
+    <div class="panel-heading">
+        <div><p class="eyebrow">{{ organization.name }}</p><h2>Amaldagi price-list</h2></div>
+        <span class="badge">{{ today|date:"d.m.Y" }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Mahsulot</th><th>Texnik xususiyat</th><th>Ta'minot</th><th>Qoldiq</th><th>Narx</th><th>Amal qilish</th></tr>
+            </thead>
+            <tbody>
+            {% for product in products %}
+            <tr {% if product.price_is_expired %}class="row-overdue"{% endif %}>
+                <td><a class="table-link" href="{% url 'catalog:detail' product.public_id %}">{{ product.article }} — {{ product.name }}</a><br><small>{{ product.get_category_display }}</small></td>
+                <td>{{ product.fabric|default:product.description|default:"—" }}{% if product.yarn_count %} · {{ product.yarn_count }}{% endif %}{% if product.get_fabric_form_display %} · {{ product.get_fabric_form_display }}{% endif %}</td>
+                <td><span class="badge">{{ product.get_availability_display }}</span></td>
+                <td>{{ product.stock_quantity }} {{ product.unit }}</td>
+                <td><strong>{{ product.list_price }} {{ product.price_currency }}/{{ product.unit }}</strong><br><small>{{ product.delivery_basis }}</small></td>
+                <td>{{ product.price_valid_until|date:"d.m.Y"|default:"Cheklanmagan" }}{% if product.price_is_expired %}<br><span class="badge badge-danger">Muddati tugagan</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="empty">Price-list uchun narxi ko'rsatilgan mahsulot topilmadi.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

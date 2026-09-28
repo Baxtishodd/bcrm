@@ -1,0 +1,19 @@
+<a
+    class="lead-card"
+    href="{% url 'crm:detail' item.public_id %}"
+    draggable="false"
+    data-kanban-item
+    data-kanban-value="{{ item.status }}"
+    data-kanban-update-url="{% url 'crm:status-update' item.public_id %}"
+>
+    <div class="lead-card-top">
+        <strong>{{ item.title }}</strong>
+        <span class="priority priority-{{ item.priority }}">{{ item.get_priority_display }}</span>
+    </div>
+    <p>{{ item.customer|default:"Mijoz biriktirilmagan" }}</p>
+    <small class="badge">{{ item.get_business_direction_display }}</small>
+    <div class="lead-card-meta">
+        <span>{{ item.estimated_value }} {{ item.currency }}</span>
+        <span>{% if item.assigned_to %}{{ item.assigned_to.get_full_name|default:item.assigned_to.email }}{% else %}—{% endif %}</span>
+    </div>
+</a>

@@ -4,6 +4,8 @@
 {% block heading %}{{ lead.title }}{% endblock %}
 
 {% block content %}
+{% url 'crm:list' as lead_list_url %}
+{% include "shared/page_navigation.html" with back_url=lead_list_url back_label="Leadlarga qaytish" parent_label="Leadlar" current_label=lead.title %}
 <section class="detail-grid">
     <article class="panel detail-card">
         <div class="panel-heading">
@@ -12,6 +14,7 @@
         </div>
         <dl class="details">
             <div><dt>Mijoz</dt><dd>{{ lead.customer|default:"—" }}</dd></div>
+            <div><dt>Savdo yo'nalishi</dt><dd>{{ lead.get_business_direction_display }}</dd></div>
             <div><dt>Kontakt</dt><dd>{{ lead.contact|default:"—" }}</dd></div>
             <div><dt>Bosqich</dt><dd>{{ lead.stage|default:"—" }}</dd></div>
             <div><dt>Qiymat</dt><dd>{{ lead.estimated_value }} {{ lead.currency }}</dd></div>

@@ -4,6 +4,8 @@
 {% block heading %}Buyurtma {{ order.number }}{% endblock %}
 
 {% block content %}
+{% url 'sales:order-list' as order_list_url %}
+{% include "shared/page_navigation.html" with back_url=order_list_url back_label="Buyurtmalarga qaytish" parent_label="Buyurtmalar" current_label=order.number %}
 <section class="panel detail-card">
     <div class="panel-heading">
         <div><p class="eyebrow">{{ order.get_status_display }}</p><h2>{{ order.customer }}</h2></div>

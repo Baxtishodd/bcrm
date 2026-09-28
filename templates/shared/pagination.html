@@ -1,0 +1,28 @@
+{% if paginator %}
+<footer class="list-pagination">
+    <p class="pagination-summary">
+        Jami {{ paginator.count }} ta yozuvdan
+        {% if paginator.count %}{{ page_obj.start_index }}–{{ page_obj.end_index }}{% else %}0{% endif %}
+        tasi ko'rsatilmoqda
+    </p>
+    {% if paginator.num_pages > 1 %}
+    <nav class="pagination-links" aria-label="Sahifalar">
+        {% if page_obj.has_previous %}
+        <a href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Oldingi</a>
+        {% endif %}
+        {% for page_number in pagination_page_range %}
+            {% if page_number == paginator.ELLIPSIS %}
+            <span class="pagination-ellipsis">{{ page_number }}</span>
+            {% elif page_number == page_obj.number %}
+            <span class="pagination-current" aria-current="page">{{ page_number }}</span>
+            {% else %}
+            <a href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_number }}">{{ page_number }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <a href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Keyingi</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</footer>
+{% endif %}

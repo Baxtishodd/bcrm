@@ -1,0 +1,19 @@
+<section class="list-toolbar">
+    <form class="list-filters" method="get">
+        {% for field in filter_form %}
+        <label class="list-filter-field{% if field.name == 'q' %} list-filter-search{% endif %}">
+            <span>{{ field.label }}</span>
+            {{ field }}
+        </label>
+        {% endfor %}
+        <div class="list-filter-actions">
+            <a class="button button-secondary" href="{{ filter_reset_url }}">Tozalash</a>
+            <button class="button" type="submit">Ko'rsatish</button>
+        </div>
+    </form>
+    {% if filter_create_url %}
+    <a class="button list-create-button" href="{{ filter_create_url }}">
+        {{ filter_create_label|default:"Yangi yozuv" }}
+    </a>
+    {% endif %}
+</section>

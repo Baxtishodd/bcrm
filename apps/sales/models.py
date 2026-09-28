@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from apps.common.models import OrganizationScopedModel
 
@@ -90,6 +91,48 @@ class QuotationLine(OrganizationScopedModel):
     @property
     def line_total(self):
         return self.quantity * self.unit_price
+
+
+class QuotationDelivery(OrganizationScopedModel):
+    class Channel(models.TextChoices):
+        EMAIL = "email", "Email"
+        TELEGRAM = "telegram", "Telegram"
+        WHATSAPP = "whatsapp", "WhatsApp"
+        OTHER = "other", "Boshqa"
+
+    class Status(models.TextChoices):
+        SENT = "sent", "Yuborildi"
+        DELIVERED = "delivered", "Yetkazildi"
+        READ = "read", "O'qildi"
+        REPLIED = "replied", "Javob berdi"
+        FAILED = "failed", "Yuborilmadi"
+
+    quotation = models.ForeignKey(
+        Quotation,
+        on_delete=models.CASCADE,
+        related_name="deliveries",
+    )
+    channel = models.CharField(max_length=20, choices=Channel.choices)
+    recipient = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.SENT,
+    )
+    sent_at = models.DateTimeField(default=timezone.now)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-sent_at", "-created_at"]
+
+    def __str__(self):
+        return f"{self.quotation.number} / {self.get_channel_display()}"
 
 
 class SalesOrder(OrganizationScopedModel):

@@ -12,6 +12,7 @@ class ActivityInline(admin.TabularInline):
 class LeadAdmin(admin.ModelAdmin):
     list_display = (
         "title",
+        "business_direction",
         "customer",
         "stage",
         "status",
@@ -19,10 +20,9 @@ class LeadAdmin(admin.ModelAdmin):
         "currency",
         "assigned_to",
     )
-    list_filter = ("status", "priority", "stage", "currency")
+    list_filter = ("business_direction", "status", "priority", "stage", "currency")
     search_fields = ("title", "customer__name", "description")
     inlines = [ActivityInline]
 
 
 admin.site.register(PipelineStage)
-

@@ -4,6 +4,7 @@
 {% block heading %}{{ page_title }}{% endblock %}
 
 {% block content %}
+{% include "shared/page_navigation.html" with back_url=cancel_url back_label="Ortga" current_label=page_title %}
 <section class="panel form-panel">
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
@@ -12,7 +13,7 @@
         {% endif %}
         <div class="form-grid">
             {% for field in form %}
-            <div class="form-field {% if field.name == 'description' or field.name == 'notes' or field.name == 'address' or field.name == 'delivery_terms' or field.name == 'payment_terms' or field.name == 'details' %}full{% endif %}">
+            <div class="form-field {% if field.name == 'description' or field.name == 'description_snapshot' or field.name == 'construction_notes' or field.name == 'notes' or field.name == 'address' or field.name == 'delivery_terms' or field.name == 'alternative_delivery_terms' or field.name == 'payment_terms' or field.name == 'details' or field.name == 'product_interest' or field.name == 'purchase_purpose' %}full{% endif %}">
                 <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
                 {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}

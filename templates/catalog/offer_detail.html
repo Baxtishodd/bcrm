@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ offer.number }} — BCRM{% endblock %}
+{% block heading %}{{ offer.number }}{% endblock %}
+
+{% block content %}
+{% url 'catalog:offer-list' as offer_list_url %}
+{% include "shared/page_navigation.html" with back_url=offer_list_url back_label="Hujjatlarga qaytish" parent_label="Taklif hujjatlari" current_label=offer.number %}
+<nav class="section-tabs">
+    <a href="{% url 'catalog:list' %}">Mahsulotlar</a>
+    <a href="{% url 'catalog:price-list' %}">Joriy narxlar</a>
+    <a class="active" href="{% url 'catalog:offer-list' %}">Taklif hujjatlari</a>
+</nav>
+<section class="panel detail-card">
+    <div class="panel-heading">
+        <div>
+            <p class="eyebrow">{{ offer.get_document_type_display }} · {{ offer.get_status_display }}</p>
+            <h2>{{ offer.title|default:offer.number }}</h2>
+        </div>
+        <div class="button-row">
+            <a class="button button-secondary" href="{% url 'catalog:offer-update' offer.public_id %}">Tahrirlash</a>
+            <a class="button" href="{% url 'catalog:offer-line-create' offer.public_id %}">Mahsulot qo'shish</a>
+        </div>
+    </div>
+    <dl class="details compact-details">
+        <div><dt>Yo'nalish</dt><dd>{{ offer.get_category_display|default:"Barcha mahsulotlar" }}</dd></div>
+        <div><dt>Til</dt><dd>{{ offer.get_language_display }}</dd></div>
+        <div><dt>Hujjat sanasi</dt><dd>{{ offer.issue_date|date:"d.m.Y" }}</dd></div>
+        <div><dt>Amal qilish</dt><dd>{{ offer.valid_until|date:"d.m.Y"|default:"Cheklanmagan" }}</dd></div>
+        <div><dt>Valyuta</dt><dd>{{ offer.currency }}</dd></div>
+        <div><dt>Yetkazish bazisi</dt><dd>{{ offer.delivery_basis }} · Incoterms {{ offer.incoterms_version }}</dd></div>
+        <div><dt>To'lov</dt><dd>{{ offer.payment_terms|default:"—" }}</dd></div>
+        <div><dt>Muqobil yetkazish</dt><dd>{{ offer.alternative_delivery_terms|default:"—" }}</dd></div>
+        <div class="wide"><dt>Izoh</dt><dd>{{ offer.notes|default:"—"|linebreaksbr }}</dd></div>
+    </dl>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Mahsulot</th><th>Texnik tavsif</th><th>Miqdor</th><th>Narx</th><th>Yuklash</th><th>Minimal buyurtma</th></tr>
+            </thead>
+            <tbody>
+            {% for line in offer.lines.all %}
+                <tr>
+                    <td><a class="table-link" href="{% url 'catalog:detail' line.product.public_id %}">{{ line.product }}</a></td>
+                    <td>{{ line.description_snapshot|default:line.product.description|default:"—"|linebreaksbr }}</td>
+                    <td>{% if line.available_quantity != None %}{{ line.available_quantity }} {{ line.get_unit_display }}{% else %}—{% endif %}</td>
+                    <td>{% if line.unit_price != None %}{{ line.unit_price }} {{ offer.currency }}/{{ line.unit }}{% else %}—{% endif %}</td>
+                    <td>{{ line.planned_loading_date|date:"d.m.Y"|default:"—" }}</td>
+                    <td>{% if line.minimum_order_quantity != None %}{{ line.minimum_order_quantity }} {{ line.get_unit_display }}{% else %}—{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="empty">Hujjatga mahsulotlar hali qo'shilmagan.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -23,7 +23,13 @@ class LeadSerializer(serializers.ModelSerializer):
 
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
-    filterset_fields = ("status", "priority", "stage", "assigned_to")
+    filterset_fields = (
+        "business_direction",
+        "status",
+        "priority",
+        "stage",
+        "assigned_to",
+    )
     search_fields = ("title", "customer__name", "description")
 
     def get_queryset(self):
@@ -38,4 +44,3 @@ class LeadViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(organization=current_organization(self.request.user))
-

@@ -12,13 +12,30 @@ class ContactInline(admin.TabularInline):
 class CustomerCompanyAdmin(admin.ModelAdmin):
     list_display = (
         "name",
+        "relationship_status",
+        "business_direction",
         "customer_type",
         "phone",
         "country",
         "owner",
         "is_active",
     )
-    list_filter = ("customer_type", "is_active", "country")
-    search_fields = ("name", "tax_id", "phone", "email")
+    list_filter = (
+        "relationship_status",
+        "business_direction",
+        "customer_type",
+        "is_active",
+        "country",
+    )
+    search_fields = (
+        "name",
+        "tax_id",
+        "phone",
+        "whatsapp",
+        "email",
+        "product_interest",
+        "purchase_purpose",
+        "notes",
+        "contacts__full_name",
+    )
     inlines = [ContactInline]
-

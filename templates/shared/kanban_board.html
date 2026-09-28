@@ -1,0 +1,24 @@
+<section
+    class="kanban"
+    data-kanban
+    data-kanban-update-field="{{ kanban_update_field|default:'status' }}"
+    data-kanban-empty-label="{{ kanban_empty_label|default:"Element yo'q" }}"
+    data-kanban-error-message="{{ kanban_error_message|default:"O'zgarishni saqlab bo'lmadi." }}"
+>
+    {% for value, label, items in columns %}
+    <div class="kanban-column" data-kanban-column>
+        <div class="kanban-heading">
+            <strong>{{ label }}</strong>
+            <span data-kanban-count>{{ items|length }}</span>
+        </div>
+        <div class="kanban-body" data-kanban-dropzone data-kanban-value="{{ value }}">
+            {% for item in items %}
+                {% include kanban_item_template with item=item %}
+            {% empty %}
+            <p class="kanban-empty" data-kanban-empty>{{ kanban_empty_label|default:"Element yo'q" }}</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    <p class="sr-only" data-kanban-announcer aria-live="polite"></p>
+</section>

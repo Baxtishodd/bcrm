@@ -6,6 +6,8 @@ from .models import Contact, CustomerCompany
 
 
 def current_organization(user):
+    if not user or not user.is_authenticated:
+        return None
     membership = Membership.objects.filter(user=user, is_active=True).first()
     return membership.organization if membership else None
 
@@ -28,8 +30,24 @@ class CustomerCompanySerializer(serializers.ModelSerializer):
 
 class CustomerCompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerCompanySerializer
-    filterset_fields = ("customer_type", "is_active", "country")
-    search_fields = ("name", "tax_id", "phone", "email")
+    filterset_fields = (
+        "relationship_status",
+        "business_direction",
+        "customer_type",
+        "is_active",
+        "country",
+    )
+    search_fields = (
+        "name",
+        "tax_id",
+        "phone",
+        "whatsapp",
+        "email",
+        "product_interest",
+        "purchase_purpose",
+        "notes",
+        "contacts__full_name",
+    )
 
     def get_queryset(self):
         organization = current_organization(self.request.user)
@@ -41,4 +59,3 @@ class CustomerCompanyViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(organization=current_organization(self.request.user))
-

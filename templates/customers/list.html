@@ -4,19 +4,13 @@
 {% block heading %}Mijozlar{% endblock %}
 
 {% block content %}
-<section class="page-actions">
-    <form class="search" method="get">
-        <input type="search" name="q" value="{{ query }}" placeholder="Nomi, telefon, email yoki STIR">
-        <button class="button button-secondary" type="submit">Qidirish</button>
-    </form>
-    <a class="button" href="{% url 'customers:create' %}">Yangi mijoz</a>
-</section>
+{% include "shared/list_filters.html" %}
 
 <section class="panel">
     <div class="table-wrap">
         <table>
             <thead>
-                <tr><th>Kompaniya</th><th>Turi</th><th>Aloqa</th><th>Hudud</th><th>Kredit limiti</th><th>Mas'ul</th></tr>
+                <tr><th>Kompaniya</th><th>Holati</th><th>Yo'nalish</th><th>Aloqa</th><th>Hudud</th><th>Mas'ul</th></tr>
             </thead>
             <tbody>
             {% for customer in customers %}
@@ -26,10 +20,10 @@
                             {{ customer.name }}
                         </a>
                     </td>
-                    <td>{{ customer.get_customer_type_display }}</td>
-                    <td>{{ customer.phone|default:customer.email|default:"—" }}</td>
+                    <td>{{ customer.get_relationship_status_display }}</td>
+                    <td>{{ customer.get_business_direction_display }}</td>
+                    <td>{{ customer.phone|default:customer.whatsapp|default:customer.email|default:"—" }}</td>
                     <td>{{ customer.city|default:customer.country|default:"—" }}</td>
-                    <td>{{ customer.credit_limit }} UZS</td>
                     <td>{% if customer.owner %}{{ customer.owner.get_full_name|default:customer.owner.email }}{% else %}—{% endif %}</td>
                 </tr>
             {% empty %}
@@ -38,5 +32,6 @@
             </tbody>
         </table>
     </div>
+    {% include "shared/pagination.html" %}
 </section>
 {% endblock %}

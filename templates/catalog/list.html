@@ -4,9 +4,20 @@
 {% block heading %}Textile katalog{% endblock %}
 
 {% block content %}
+<nav class="section-tabs">
+    <a class="active" href="{% url 'catalog:list' %}">Mahsulotlar</a>
+    <a href="{% url 'catalog:price-list' %}">Joriy narxlar</a>
+    <a href="{% url 'catalog:offer-list' %}">Taklif hujjatlari</a>
+</nav>
 <section class="page-actions">
     <form class="search" method="get">
         <input type="search" name="q" value="{{ query }}" placeholder="Artikul yoki mahsulot nomi">
+        <select name="category">
+            <option value="">Barcha kategoriyalar</option>
+            {% for value, label in category_choices %}
+            <option value="{{ value }}" {% if category == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
         <button class="button button-secondary" type="submit">Qidirish</button>
     </form>
     <a class="button" href="{% url 'catalog:create' %}">Yangi mahsulot</a>
@@ -19,9 +30,10 @@
             {% else %}<span>{{ product.article|slice:":2"|upper }}</span>{% endif %}
         </div>
         <div>
-            <p class="eyebrow">{{ product.article }}</p>
+            <p class="eyebrow">{{ product.article }} · {{ product.get_category_display }}</p>
             <h2>{{ product.name }}</h2>
             <p>{{ product.fabric|default:"Mato ko'rsatilmagan" }} · {{ product.get_unit_display }}</p>
+            {% if product.list_price %}<p class="product-price">{{ product.list_price }} {{ product.price_currency }}/{{ product.unit }}</p>{% endif %}
         </div>
     </a>
     {% empty %}
@@ -29,4 +41,3 @@
     {% endfor %}
 </section>
 {% endblock %}
-

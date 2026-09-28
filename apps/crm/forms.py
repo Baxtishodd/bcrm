@@ -11,6 +11,7 @@ class LeadForm(forms.ModelForm):
         model = Lead
         fields = (
             "title",
+            "business_direction",
             "customer",
             "contact",
             "stage",
@@ -29,6 +30,7 @@ class LeadForm(forms.ModelForm):
             "description": forms.Textarea(attrs={"rows": 4}),
             "lost_reason": forms.Textarea(attrs={"rows": 2}),
         }
+        labels = {"business_direction": "Savdo yo'nalishi"}
 
     def __init__(self, *args, organization, **kwargs):
         super().__init__(*args, **kwargs)

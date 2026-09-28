@@ -1,0 +1,12 @@
+<nav class="page-navigation" aria-label="Sahifa navigatsiyasi">
+    <a class="back-button" href="{{ back_url }}" aria-label="{{ back_label|default:'Ortga' }}">
+        <span aria-hidden="true">←</span>
+        <span>{{ back_label|default:"Ortga" }}</span>
+    </a>
+    {% if parent_label %}
+    <ol class="breadcrumbs" aria-label="Sahifa yo'li">
+        <li><a href="{{ back_url }}">{{ parent_label }}</a></li>
+        {% if current_label %}<li aria-current="page">{{ current_label }}</li>{% endif %}
+    </ol>
+    {% endif %}
+</nav>

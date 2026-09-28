@@ -5,7 +5,7 @@ from apps.catalog.models import Product
 from apps.crm.models import Lead
 from apps.customers.models import CustomerCompany
 
-from .models import Quotation, QuotationLine, SalesOrder
+from .models import Quotation, QuotationDelivery, QuotationLine, SalesOrder
 
 
 class QuotationForm(forms.ModelForm):
@@ -79,6 +79,19 @@ class QuotationLineForm(forms.ModelForm):
             organization=organization,
             is_active=True,
         )
+
+
+class QuotationDeliveryForm(forms.ModelForm):
+    class Meta:
+        model = QuotationDelivery
+        fields = ("channel", "recipient", "status", "notes")
+        widgets = {"notes": forms.Textarea(attrs={"rows": 3})}
+        labels = {
+            "channel": "Yuborish kanali",
+            "recipient": "Qabul qiluvchi",
+            "status": "Yetkazish holati",
+            "notes": "Izoh yoki mijoz javobi",
+        }
 
 
 class SalesOrderForm(forms.ModelForm):

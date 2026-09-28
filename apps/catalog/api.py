@@ -2,7 +2,24 @@ from rest_framework import serializers, viewsets
 
 from apps.customers.api import current_organization
 
-from .models import Product, ProductVariant
+from .models import (
+    Product,
+    ProductVariant,
+    WovenFabricSpecification,
+    YarnSpecification,
+)
+
+
+class YarnSpecificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = YarnSpecification
+        exclude = ("organization", "product")
+
+
+class WovenFabricSpecificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WovenFabricSpecification
+        exclude = ("organization", "product")
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
@@ -16,6 +33,8 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     variants = ProductVariantSerializer(many=True, read_only=True)
+    yarn_specification = YarnSpecificationSerializer(read_only=True)
+    woven_specification = WovenFabricSpecificationSerializer(read_only=True)
 
     class Meta:
         model = Product
@@ -24,8 +43,15 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
-    filterset_fields = ("unit", "fabric", "is_active")
-    search_fields = ("article", "name")
+    filterset_fields = (
+        "category",
+        "unit",
+        "fabric",
+        "availability",
+        "finish",
+        "is_active",
+    )
+    search_fields = ("article", "name", "fabric__name")
 
     def get_queryset(self):
         organization = current_organization(self.request.user)
@@ -33,10 +59,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Product.objects.none()
         return (
             Product.objects.filter(organization=organization)
-            .select_related("fabric")
+            .select_related("fabric", "yarn_specification", "woven_specification")
             .prefetch_related("variants")
         )
 
     def perform_create(self, serializer):
         serializer.save(organization=current_organization(self.request.user))
-

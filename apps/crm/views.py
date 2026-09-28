@@ -1,9 +1,13 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponseNotAllowed
+from django.http import HttpResponseBadRequest, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.common.tenancy import organization_required
 
@@ -13,17 +17,24 @@ from .models import Activity, Lead
 
 @login_required
 @organization_required
+@ensure_csrf_cookie
 def lead_list(request):
     query = request.GET.get("q", "").strip()
+    direction = request.GET.get("direction", "")
     leads = Lead.objects.filter(
         organization=request.organization,
-    ).select_related("customer", "stage", "assigned_to")
+    ).select_related("customer", "stage", "assigned_to").order_by(
+        "kanban_position",
+        "-created_at",
+    )
     if query:
         leads = leads.filter(
             Q(title__icontains=query)
             | Q(customer__name__icontains=query)
             | Q(source__icontains=query)
         )
+    if direction:
+        leads = leads.filter(business_direction=direction)
     columns = [
         (value, label, leads.filter(status=value))
         for value, label in Lead.Status.choices
@@ -34,6 +45,8 @@ def lead_list(request):
         {
             "columns": columns,
             "query": query,
+            "direction": direction,
+            "direction_choices": Lead.BusinessDirection.choices,
             "organization": request.organization,
         },
     )
@@ -110,6 +123,75 @@ def lead_update(request, public_id):
             "cancel_url": f"/leads/{lead.public_id}/",
             "organization": request.organization,
         },
+    )
+
+
+@login_required
+@organization_required
+def lead_status_update(request, public_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    try:
+        payload = json.loads(request.body or "{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return HttpResponseBadRequest("Invalid JSON payload")
+
+    status = payload.get("status")
+    position = payload.get("position")
+    valid_statuses = dict(Lead.Status.choices)
+    if status not in valid_statuses:
+        return JsonResponse({"error": "Noto'g'ri lead holati."}, status=400)
+    if isinstance(position, bool) or not isinstance(position, int) or position < 0:
+        return JsonResponse({"error": "Noto'g'ri Kanban pozitsiyasi."}, status=400)
+
+    with transaction.atomic():
+        lead = get_object_or_404(
+            Lead.objects.select_for_update(),
+            public_id=public_id,
+            organization=request.organization,
+        )
+        old_status = lead.status
+        affected_statuses = {old_status, status}
+        affected_leads = list(
+            Lead.objects.select_for_update()
+            .filter(
+                organization=request.organization,
+                status__in=affected_statuses,
+            )
+            .order_by("kanban_position", "-created_at")
+        )
+        source_leads = [
+            item for item in affected_leads
+            if item.status == old_status and item.pk != lead.pk
+        ]
+        target_leads = [
+            item for item in affected_leads
+            if item.status == status and item.pk != lead.pk
+        ]
+        target_position = min(position, len(target_leads))
+        target_leads.insert(target_position, lead)
+        lead.status = status
+
+        ordered_leads = target_leads
+        if old_status != status:
+            ordered_leads = source_leads + target_leads
+        for index, item in enumerate(source_leads):
+            item.kanban_position = index
+        for index, item in enumerate(target_leads):
+            item.kanban_position = index
+        Lead.objects.bulk_update(
+            ordered_leads,
+            ["status", "kanban_position"],
+        )
+        lead.save(update_fields=["updated_at"])
+
+    return JsonResponse(
+        {
+            "status": lead.status,
+            "status_label": lead.get_status_display(),
+            "position": lead.kanban_position,
+            "message": f"Lead «{lead.title}» — {lead.get_status_display()}.",
+        }
     )
 
 

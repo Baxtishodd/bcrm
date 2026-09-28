@@ -4,19 +4,64 @@
 {% block heading %}{{ product.name }}{% endblock %}
 
 {% block content %}
+{% url 'catalog:list' as product_list_url %}
+{% include "shared/page_navigation.html" with back_url=product_list_url back_label="Mahsulotlarga qaytish" parent_label="Mahsulotlar" current_label=product.name %}
 <section class="detail-grid">
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">{{ product.article }}</p><h2>Mahsulot</h2></div>
-            <a class="button button-secondary" href="{% url 'catalog:update' product.public_id %}">Tahrirlash</a>
+            <div class="button-row">
+                {% if product.category == 'yarn' or product.category == 'woven_fabric' %}
+                <a class="button button-secondary" href="{% url 'catalog:specification-update' product.public_id %}">Texnik xususiyatlar</a>
+                {% endif %}
+                <a class="button button-secondary" href="{% url 'catalog:update' product.public_id %}">Tahrirlash</a>
+            </div>
         </div>
         <dl class="details">
             <div><dt>Artikul</dt><dd>{{ product.article }}</dd></div>
+            <div><dt>Kategoriya</dt><dd>{{ product.get_category_display }}</dd></div>
             <div><dt>Birlik</dt><dd>{{ product.get_unit_display }}</dd></div>
             <div><dt>Mato</dt><dd>{{ product.fabric|default:"—" }}</dd></div>
             <div><dt>Faol</dt><dd>{{ product.is_active|yesno:"Ha,Yo'q" }}</dd></div>
+            <div><dt>Ip raqami</dt><dd>{{ product.yarn_count|default:"—" }}</dd></div>
+            <div><dt>To'quv uskunasi</dt><dd>{{ product.knitting_machine|default:"—" }}</dd></div>
+            <div><dt>Mato ko'rinishi</dt><dd>{{ product.get_fabric_form_display|default:"—" }}</dd></div>
+            <div><dt>Pardoz holati</dt><dd>{{ product.get_finish_display|default:"—" }}</dd></div>
+            <div><dt>Ta'minot</dt><dd>{{ product.get_availability_display }}</dd></div>
+            <div><dt>Ombordagi miqdor</dt><dd>{{ product.stock_quantity }} {{ product.get_unit_display }}</dd></div>
+            <div><dt>Price-list narxi</dt><dd>{% if product.list_price %}{{ product.list_price }} {{ product.price_currency }}/{{ product.unit }}{% else %}—{% endif %}</dd></div>
+            <div><dt>Narx amal qilish muddati</dt><dd>{{ product.price_valid_until|date:"d.m.Y"|default:"—" }}{% if product.price_is_expired %} <span class="badge badge-danger">Muddati tugagan</span>{% endif %}</dd></div>
+            <div><dt>Yetkazish bazisi</dt><dd>{{ product.delivery_basis|default:"—" }}</dd></div>
             <div class="wide"><dt>Tavsif</dt><dd>{{ product.description|default:"—"|linebreaksbr }}</dd></div>
         </dl>
+        {% if product.category == 'yarn' %}
+        {% with spec=product.yarn_specification %}
+        <h3>Ip-kalava texnikasi</h3>
+        <dl class="details compact-details">
+            <div><dt>Ip raqami</dt><dd>{{ spec.yarn_count|default:"—" }}</dd></div>
+            <div><dt>Tarkibi</dt><dd>{{ spec.composition|default:"—" }}</dd></div>
+            <div><dt>Yigirish</dt><dd>{{ spec.get_spinning_method_display|default:"—" }}</dd></div>
+            <div><dt>Tayyorlash</dt><dd>{{ spec.get_preparation_display|default:"—" }}</dd></div>
+            <div><dt>Compact</dt><dd>{{ spec.is_compact|yesno:"Ha,Yo'q,—" }}</dd></div>
+        </dl>
+        {% endwith %}
+        {% elif product.category == 'woven_fabric' %}
+        {% with spec=product.woven_specification %}
+        <h3>To'quv mato texnikasi</h3>
+        <dl class="details compact-details">
+            <div><dt>Tarkibi</dt><dd>{{ spec.composition|default:"—" }}</dd></div>
+            <div><dt>Eni</dt><dd>{% if spec %}{{ spec.width_cm }} sm{% else %}—{% endif %}</dd></div>
+            <div><dt>Zichligi</dt><dd>{% if spec %}{{ spec.gsm }} GSM{% else %}—{% endif %}</dd></div>
+            <div><dt>To'qilish</dt><dd>{{ spec.weave|default:"—" }}</dd></div>
+            <div><dt>Tanda ipi</dt><dd>{{ spec.warp_yarn|default:"—" }}</dd></div>
+            <div><dt>Arqoq ipi</dt><dd>{{ spec.weft_yarn|default:"—" }}</dd></div>
+            <div><dt>Qirg'oq</dt><dd>{{ spec.get_selvedge_display|default:"—" }}</dd></div>
+            <div><dt>Iplar soni</dt><dd>{% if spec %}{{ spec.warp_threads|default:"—" }} / {{ spec.weft_threads|default:"—" }}{% else %}—{% endif %}</dd></div>
+            <div><dt>O'ram uzunligi</dt><dd>{% if spec %}{{ spec.roll_length_min|default:"—" }}–{{ spec.roll_length_max|default:"—" }} m{% else %}—{% endif %}</dd></div>
+            <div class="wide"><dt>Texnik izoh</dt><dd>{{ spec.construction_notes|default:"—" }}</dd></div>
+        </dl>
+        {% endwith %}
+        {% endif %}
     </article>
     <article class="panel detail-card">
         <div class="panel-heading">
@@ -38,4 +83,3 @@
     </article>
 </section>
 {% endblock %}
-

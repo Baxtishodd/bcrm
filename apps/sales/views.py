@@ -6,8 +6,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.common.tenancy import organization_required
 
-from .forms import QuotationForm, QuotationLineForm, SalesOrderForm
-from .models import Quotation, SalesOrder
+from .forms import (
+    QuotationDeliveryForm,
+    QuotationForm,
+    QuotationLineForm,
+    SalesOrderForm,
+)
+from .models import Quotation, QuotationDelivery, SalesOrder
 from .services import convert_quotation_to_order, next_document_number
 
 
@@ -73,7 +78,7 @@ def quotation_detail(request, public_id):
             "customer",
             "lead",
             "created_by",
-        ).prefetch_related("lines__product"),
+        ).prefetch_related("lines__product", "deliveries__sent_by"),
         public_id=public_id,
         organization=request.organization,
     )
@@ -84,6 +89,39 @@ def quotation_detail(request, public_id):
     )
 
 
+@login_required
+@organization_required
+def quotation_delivery_create(request, public_id):
+    quotation = get_object_or_404(
+        Quotation,
+        public_id=public_id,
+        organization=request.organization,
+    )
+    form = QuotationDeliveryForm(request.POST or None)
+    if form.is_valid():
+        delivery = form.save(commit=False)
+        delivery.organization = request.organization
+        delivery.quotation = quotation
+        delivery.sent_by = request.user
+        delivery.save()
+        if (
+            quotation.status == Quotation.Status.DRAFT
+            and delivery.status != QuotationDelivery.Status.FAILED
+        ):
+            quotation.status = Quotation.Status.SENT
+            quotation.save(update_fields=["status", "updated_at"])
+        messages.success(request, "Taklif yuborish tarixi saqlandi.")
+        return redirect("sales:detail", public_id=quotation.public_id)
+    return render(
+        request,
+        "shared/form.html",
+        {
+            "form": form,
+            "page_title": f"{quotation.number} yuborilishini qayd etish",
+            "cancel_url": f"/sales/{quotation.public_id}/",
+            "organization": request.organization,
+        },
+    )
 @login_required
 @organization_required
 def quotation_update(request, public_id):

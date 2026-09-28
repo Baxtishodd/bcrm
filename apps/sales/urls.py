@@ -15,4 +15,9 @@ urlpatterns = [
     path("<uuid:public_id>/print/", views.quotation_print, name="print"),
     path("<uuid:public_id>/convert/", views.quotation_convert, name="convert"),
     path("<uuid:public_id>/lines/new/", views.quotation_line_create, name="line-create"),
+    path(
+        "<uuid:public_id>/deliveries/new/",
+        views.quotation_delivery_create,
+        name="delivery-create",
+    ),
 ]

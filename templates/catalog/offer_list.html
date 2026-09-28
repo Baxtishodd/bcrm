@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Taklif hujjatlari — BCRM{% endblock %}
+{% block heading %}Taklif hujjatlari{% endblock %}
+
+{% block content %}
+<nav class="section-tabs">
+    <a href="{% url 'catalog:list' %}">Mahsulotlar</a>
+    <a href="{% url 'catalog:price-list' %}">Joriy narxlar</a>
+    <a class="active" href="{% url 'catalog:offer-list' %}">Taklif hujjatlari</a>
+</nav>
+<section class="page-actions">
+    <p class="muted">Price-list va product-list hujjatlari, muddatlari va tarixiy narxlari.</p>
+    <a class="button" href="{% url 'catalog:offer-create' %}">Yangi hujjat</a>
+</section>
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Raqam</th><th>Turi</th><th>Yo'nalish</th><th>Sana</th><th>Amal qilish</th><th>Qatorlar</th><th>Holati</th></tr>
+            </thead>
+            <tbody>
+            {% for offer in offers %}
+                <tr {% if offer.is_expired %}class="row-overdue"{% endif %}>
+                    <td><a class="table-link" href="{% url 'catalog:offer-detail' offer.public_id %}">{{ offer.number }}</a></td>
+                    <td>{{ offer.get_document_type_display }}</td>
+                    <td>{{ offer.get_category_display|default:"Barcha mahsulotlar" }}</td>
+                    <td>{{ offer.issue_date|date:"d.m.Y" }}</td>
+                    <td>{{ offer.valid_until|date:"d.m.Y"|default:"Cheklanmagan" }}</td>
+                    <td>{{ offer.lines.count }}</td>
+                    <td>
+                        <span class="badge">{{ offer.get_status_display }}</span>
+                        {% if offer.is_expired %}<span class="badge badge-danger">Muddati tugagan</span>{% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="empty">Taklif hujjatlari hali yaratilmagan.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

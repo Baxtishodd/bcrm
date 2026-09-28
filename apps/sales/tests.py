@@ -1,13 +1,14 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.catalog.models import Product
 from apps.customers.models import CustomerCompany
 from apps.organizations.models import Membership, Organization
 
-from .models import Quotation, QuotationLine, SalesOrder
+from .models import Quotation, QuotationDelivery, QuotationLine, SalesOrder
 from .services import convert_quotation_to_order
 
 
@@ -48,6 +49,7 @@ class QuotationConversionTests(TestCase):
             quantity=Decimal("100"),
             unit_price=Decimal("20000"),
         )
+        self.client.force_login(self.user)
 
     def test_total_applies_discount_then_tax(self):
         self.assertEqual(self.quotation.subtotal, Decimal("2000000"))
@@ -67,3 +69,25 @@ class QuotationConversionTests(TestCase):
         self.assertEqual(order.lines.get().quantity, Decimal("100"))
         self.assertEqual(order.total, Decimal("2016000"))
         self.assertEqual(self.quotation.status, Quotation.Status.ACCEPTED)
+
+    def test_delivery_log_records_channel_and_marks_draft_as_sent(self):
+        response = self.client.post(
+            reverse("sales:delivery-create", args=[self.quotation.public_id]),
+            {
+                "channel": QuotationDelivery.Channel.TELEGRAM,
+                "recipient": "@buyer",
+                "status": QuotationDelivery.Status.SENT,
+                "notes": "Haftalik price-list yuborildi",
+            },
+        )
+
+        delivery = self.quotation.deliveries.get()
+        self.quotation.refresh_from_db()
+        self.assertRedirects(
+            response,
+            reverse("sales:detail", args=[self.quotation.public_id]),
+        )
+        self.assertEqual(delivery.organization, self.organization)
+        self.assertEqual(delivery.sent_by, self.user)
+        self.assertEqual(delivery.channel, QuotationDelivery.Channel.TELEGRAM)
+        self.assertEqual(self.quotation.status, Quotation.Status.SENT)

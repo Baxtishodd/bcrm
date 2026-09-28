@@ -46,6 +46,8 @@ class QuotationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         organization = current_organization(self.request.user)
+        if not organization:
+            return Quotation.objects.none()
         return Quotation.objects.filter(organization=organization).select_related(
             "customer",
             "lead",
@@ -102,6 +104,8 @@ class SalesOrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         organization = current_organization(self.request.user)
+        if not organization:
+            return SalesOrder.objects.none()
         return SalesOrder.objects.filter(organization=organization).select_related(
             "customer",
             "quotation",
