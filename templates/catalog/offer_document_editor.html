@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}{{ offer.number }} hujjat muharriri — BCRM{% endblock %}
+{% block heading %}Taklif hujjati muharriri{% endblock %}
+
+{% block content %}
+{% url 'catalog:offer-detail' offer.public_id as offer_url %}
+{% include "shared/page_navigation.html" with back_url=offer_url back_label="Taklifga qaytish" parent_label=offer.number current_label="Hujjat muharriri" %}
+
+<form method="post" class="document-editor" id="document-editor-form">
+    {% csrf_token %}
+    {{ line_formset.management_form }}
+    {% if form.non_field_errors or line_formset.non_form_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}{{ line_formset.non_form_errors }}</div>
+    {% endif %}
+
+    <div class="document-toolbar">
+        <div>
+            <strong>Hujjatni bevosita tahrirlang</strong>
+            <small>Rekvizitlar, mahsulot qatorlari va matn saqlangandan keyin PDF'ga avtomatik o'tadi.</small>
+        </div>
+        <div class="button-row">
+            <a class="button button-secondary" href="{% url 'catalog:offer-pdf' offer.public_id %}">PDF yuklab olish</a>
+            <button class="button" type="submit">Saqlash</button>
+        </div>
+    </div>
+
+    <article class="document-canvas">
+        <header class="document-header">
+            <div class="document-company">
+                {% if organization.logo %}<img src="{{ organization.logo.url }}" alt="{{ organization.name }}">{% endif %}
+                <div>
+                    <strong>{{ organization.document_name }}</strong>
+                    {% if organization.tax_id %}<span>STIR: {{ organization.tax_id }}</span>{% endif %}
+                    {% if organization.phone %}<span>{{ organization.phone }}</span>{% endif %}
+                    {% if organization.email %}<span>{{ organization.email }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="document-heading-fields">
+                {{ form.title }}
+                <span>№ {{ offer.number }}</span>
+                <span>{{ offer.issue_date|date:"d.m.Y" }}</span>
+            </div>
+        </header>
+
+        <div class="document-meta-grid document-meta-wide">
+            <label><span>{{ form.number.label }}</span>{{ form.number }}{% for error in form.number.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</label>
+            <label><span>{{ form.document_type.label }}</span>{{ form.document_type }}</label>
+            <label><span>{{ form.category.label }}</span>{{ form.category }}</label>
+            <label><span>{{ form.language.label }}</span>{{ form.language }}</label>
+            <label><span>{{ form.issue_date.label }}</span>{{ form.issue_date }}</label>
+            <label><span>{{ form.valid_until.label }}</span>{{ form.valid_until }}{% for error in form.valid_until.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</label>
+            <label><span>{{ form.currency.label }}</span>{{ form.currency }}{% for error in form.currency.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</label>
+            <label><span>{{ form.status.label }}</span>{{ form.status }}</label>
+        </div>
+
+        <div class="document-block">
+            <label for="{{ form.document_intro.id_for_label }}">{{ form.document_intro.label }}</label>
+            {{ form.document_intro }}
+        </div>
+
+        <div class="document-lines-wrap">
+            <table class="document-lines catalog-document-lines" id="document-lines">
+                <thead><tr><th>Mahsulot</th><th>Tavsif</th><th>Miqdor</th><th>Birlik</th><th>Narx</th><th>Min.</th><th>Yuklash</th><th>Tartib</th><th></th></tr></thead>
+                <tbody id="document-line-body">
+                {% for line_form in line_formset %}
+                <tr class="document-line-row{% if not line_form.instance.pk %} document-line-new{% endif %}">
+                    <td>{{ line_form.id }}{{ line_form.product }}{% for error in line_form.product.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.description_snapshot }}{% for error in line_form.description_snapshot.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.available_quantity }}</td>
+                    <td>{{ line_form.unit }}{% for error in line_form.unit.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.unit_price }}</td>
+                    <td>{{ line_form.minimum_order_quantity }}</td>
+                    <td>{{ line_form.planned_loading_date }}</td>
+                    <td>{{ line_form.sort_order }}</td>
+                    <td class="document-line-remove">{{ line_form.DELETE }}<button type="button" class="link-button remove-line">Olib tashlash</button></td>
+                </tr>
+                {% if line_form.non_field_errors %}<tr><td colspan="9" class="form-errors">{{ line_form.non_field_errors }}</td></tr>{% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+            <button class="button button-secondary button-small" type="button" id="add-document-line">+ Qator qo'shish</button>
+        </div>
+
+        <template id="empty-document-line">
+            <tr class="document-line-row document-line-new">
+                <td>{{ line_formset.empty_form.id }}{{ line_formset.empty_form.product }}</td>
+                <td>{{ line_formset.empty_form.description_snapshot }}</td>
+                <td>{{ line_formset.empty_form.available_quantity }}</td>
+                <td>{{ line_formset.empty_form.unit }}</td>
+                <td>{{ line_formset.empty_form.unit_price }}</td>
+                <td>{{ line_formset.empty_form.minimum_order_quantity }}</td>
+                <td>{{ line_formset.empty_form.planned_loading_date }}</td>
+                <td>{{ line_formset.empty_form.sort_order }}</td>
+                <td class="document-line-remove">{{ line_formset.empty_form.DELETE }}<button type="button" class="link-button remove-line">Olib tashlash</button></td>
+            </tr>
+        </template>
+
+        <div class="document-meta-grid document-meta-wide">
+            <label><span>{{ form.incoterm.label }}</span>{{ form.incoterm }}</label>
+            <label><span>{{ form.delivery_place.label }}</span>{{ form.delivery_place }}</label>
+            <label><span>{{ form.incoterms_version.label }}</span>{{ form.incoterms_version }}</label>
+        </div>
+        <div class="document-terms-grid">
+            <div class="document-block"><label for="{{ form.payment_terms.id_for_label }}">{{ form.payment_terms.label }}</label>{{ form.payment_terms }}</div>
+            <div class="document-block"><label for="{{ form.alternative_delivery_terms.id_for_label }}">{{ form.alternative_delivery_terms.label }}</label>{{ form.alternative_delivery_terms }}</div>
+        </div>
+        <div class="document-block"><label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>{{ form.notes }}</div>
+        <div class="document-block document-footer-field"><label for="{{ form.document_footer.id_for_label }}">{{ form.document_footer.label }}</label>{{ form.document_footer }}</div>
+    </article>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+    const body = document.getElementById('document-line-body');
+    const totalForms = document.getElementById('id_lines-TOTAL_FORMS');
+    const template = document.getElementById('empty-document-line');
+
+    function bindRow(row) {
+        row.querySelector('.remove-line')?.addEventListener('click', () => {
+            const deleted = row.querySelector('input[name$="-DELETE"]');
+            if (deleted) {
+                deleted.checked = true;
+                row.hidden = true;
+            } else {
+                row.remove();
+            }
+        });
+    }
+    body.querySelectorAll('.document-line-row').forEach(bindRow);
+    document.getElementById('add-document-line').addEventListener('click', () => {
+        const index = parseInt(totalForms.value, 10);
+        body.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__prefix__', index));
+        totalForms.value = index + 1;
+        bindRow(body.lastElementChild);
+    });
+    document.querySelectorAll('.document-block textarea').forEach(field => {
+        const resize = () => { field.style.height = 'auto'; field.style.height = `${field.scrollHeight}px`; };
+        field.addEventListener('input', resize);
+        resize();
+    });
+})();
+</script>
+{% endblock %}

@@ -30,7 +30,13 @@ class LeadForm(forms.ModelForm):
             "description": forms.Textarea(attrs={"rows": 4}),
             "lost_reason": forms.Textarea(attrs={"rows": 2}),
         }
-        labels = {"business_direction": "Savdo yo'nalishi"}
+        labels = {
+            "business_direction": "Savdo yo'nalishi",
+            "lost_reason": "Yutqazish sababi",
+        }
+        help_texts = {
+            "lost_reason": "Lead «Yutqazildi» bo'lsa, ushbu maydon majburiy.",
+        }
 
     def __init__(self, *args, organization, **kwargs):
         super().__init__(*args, **kwargs)

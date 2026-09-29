@@ -25,6 +25,7 @@ urlpatterns = [
     path("tasks/", include("apps.crm.task_urls")),
     path("catalog/", include("apps.catalog.urls")),
     path("sales/", include("apps.sales.urls")),
+    path("organization/", include("apps.organizations.urls")),
     path("", include("apps.common.urls")),
 ]
 

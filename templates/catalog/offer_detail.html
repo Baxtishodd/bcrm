@@ -18,8 +18,10 @@
             <h2>{{ offer.title|default:offer.number }}</h2>
         </div>
         <div class="button-row">
+            <a class="button button-secondary" href="{% url 'catalog:offer-pdf' offer.public_id %}">PDF yuklab olish</a>
+            <a class="button" href="{% url 'catalog:offer-document-edit' offer.public_id %}">Hujjat muharriri</a>
             <a class="button button-secondary" href="{% url 'catalog:offer-update' offer.public_id %}">Tahrirlash</a>
-            <a class="button" href="{% url 'catalog:offer-line-create' offer.public_id %}">Mahsulot qo'shish</a>
+            <a class="button button-secondary" href="{% url 'catalog:offer-line-create' offer.public_id %}">Mahsulot qo'shish</a>
         </div>
     </div>
     <dl class="details compact-details">

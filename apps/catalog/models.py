@@ -6,6 +6,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from apps.common.choices import Currency
 from apps.common.images import OptimizedImageField
 from apps.common.models import OrganizationScopedModel
 
@@ -128,7 +129,11 @@ class Product(OrganizationScopedModel):
         blank=True,
         validators=[MinValueValidator(Decimal("0"))],
     )
-    price_currency = models.CharField(max_length=3, default="USD")
+    price_currency = models.CharField(
+        max_length=3,
+        choices=Currency.choices,
+        default=Currency.USD,
+    )
     delivery_basis = models.CharField(max_length=100, blank=True, default="FCA Koson")
     price_valid_until = models.DateField(null=True, blank=True)
     image = OptimizedImageField(blank=True)
@@ -259,7 +264,11 @@ class PriceList(OrganizationScopedModel):
     )
     issue_date = models.DateField(default=timezone.localdate)
     valid_until = models.DateField(null=True, blank=True)
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(
+        max_length=3,
+        choices=Currency.choices,
+        default=Currency.USD,
+    )
     incoterm = models.CharField(max_length=10, default="FCA")
     delivery_place = models.CharField(max_length=100, default="Koson, UZB")
     incoterms_version = models.CharField(max_length=4, blank=True, default="2020")
@@ -276,6 +285,8 @@ class PriceList(OrganizationScopedModel):
         default=Status.DRAFT,
     )
     notes = models.TextField(blank=True)
+    document_intro = models.TextField(blank=True)
+    document_footer = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

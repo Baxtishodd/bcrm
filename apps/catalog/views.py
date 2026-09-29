@@ -1,12 +1,17 @@
+from urllib.parse import quote
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.common.tenancy import organization_required
 
 from .forms import (
+    PriceListDocumentLineFormSet,
     PriceListForm,
     PriceListLineForm,
     ProductForm,
@@ -20,6 +25,7 @@ from .models import (
     WovenFabricSpecification,
     YarnSpecification,
 )
+from .pdf import build_price_list_pdf, price_list_pdf_filename
 
 
 @login_required
@@ -258,6 +264,74 @@ def offer_update(request, public_id):
             "organization": request.organization,
         },
     )
+
+
+@login_required
+@organization_required
+def offer_document_edit(request, public_id):
+    offer = get_object_or_404(
+        PriceList.objects.select_related("organization").prefetch_related(
+            "lines__product__fabric",
+            "lines__product__yarn_specification",
+            "lines__product__woven_specification",
+        ),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    form = PriceListForm(request.POST or None, instance=offer)
+    line_formset = PriceListDocumentLineFormSet(
+        request.POST or None,
+        instance=offer,
+        prefix="lines",
+        form_kwargs={
+            "organization": request.organization,
+            "price_list": offer,
+        },
+    )
+    if form.is_valid() and line_formset.is_valid():
+        with transaction.atomic():
+            form.save()
+            lines = line_formset.save(commit=False)
+            for deleted_line in line_formset.deleted_objects:
+                deleted_line.delete()
+            for line in lines:
+                line.organization = request.organization
+                line.price_list = offer
+                line.save()
+            line_formset.save_m2m()
+        messages.success(request, "Taklif hujjati saqlandi.")
+        return redirect("catalog:offer-document-edit", public_id=offer.public_id)
+    return render(
+        request,
+        "catalog/offer_document_editor.html",
+        {
+            "offer": offer,
+            "form": form,
+            "line_formset": line_formset,
+            "organization": request.organization,
+        },
+    )
+
+
+@login_required
+@organization_required
+def offer_pdf(request, public_id):
+    offer = get_object_or_404(
+        PriceList.objects.select_related("organization").prefetch_related(
+            "lines__product__fabric",
+            "lines__product__yarn_specification",
+            "lines__product__woven_specification",
+        ),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    filename = price_list_pdf_filename(offer)
+    response = HttpResponse(build_price_list_pdf(offer), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{filename}"; filename*=UTF-8\'\'{quote(filename)}'
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required

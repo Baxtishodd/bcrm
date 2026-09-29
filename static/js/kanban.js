@@ -22,6 +22,64 @@
             if (announcer) announcer.textContent = message;
         };
 
+        const requestLostReason = () => new Promise((resolve) => {
+            const dialog = document.createElement("dialog");
+            dialog.className = "kanban-reason-dialog";
+            dialog.innerHTML = `
+                <form method="dialog" class="kanban-reason-form">
+                    <div>
+                        <p class="eyebrow">Lead holati</p>
+                        <h2>Yutqazish sababini kiriting</h2>
+                        <p class="kanban-reason-help">Bu ma'lumot keyingi tahlil va hisobotlarda ishlatiladi.</p>
+                    </div>
+                    <label for="kanban-lost-reason">Sabab</label>
+                    <textarea id="kanban-lost-reason" rows="4" required></textarea>
+                    <p class="form-error" data-kanban-reason-error hidden>Sababni kiritish majburiy.</p>
+                    <div class="button-row kanban-reason-actions">
+                        <button class="button button-secondary" type="button" value="cancel">Bekor qilish</button>
+                        <button class="button" type="submit" value="confirm">Yutqazildi deb belgilash</button>
+                    </div>
+                </form>
+            `;
+            const form = dialog.querySelector("form");
+            const textarea = dialog.querySelector("textarea");
+            const error = dialog.querySelector("[data-kanban-reason-error]");
+            const cancelButton = dialog.querySelector('button[value="cancel"]');
+            let completed = false;
+
+            const finish = (reason = "") => {
+                if (completed) return;
+                completed = true;
+                dialog.remove();
+                resolve(reason);
+            };
+
+            cancelButton.addEventListener("click", () => {
+                dialog.close("cancel");
+            });
+            form.addEventListener("submit", (event) => {
+                const reason = textarea.value.trim();
+                if (!reason) {
+                    event.preventDefault();
+                    error.hidden = false;
+                    textarea.focus();
+                    return;
+                }
+                dialog.returnValue = "confirm";
+            });
+            dialog.addEventListener("close", () => {
+                finish(dialog.returnValue === "confirm" ? textarea.value.trim() : "");
+            });
+            dialog.addEventListener("cancel", (event) => {
+                event.preventDefault();
+                dialog.close("cancel");
+            });
+
+            document.body.append(dialog);
+            dialog.showModal();
+            textarea.focus();
+        });
+
         const updateColumn = (zone) => {
             if (!zone) return;
             const items = zone.querySelectorAll(":scope > [data-kanban-item]");
@@ -76,6 +134,15 @@
             const oldValue = item.dataset.kanbanValue;
             if (!sourceZone || !targetZone || !newValue || item.dataset.kanbanPending) return;
 
+            let lostReason = "";
+            if (updateField === "status" && newValue === "lost" && oldValue !== "lost") {
+                lostReason = await requestLostReason();
+                if (!lostReason) {
+                    announce("Yutqazish sababini kiritmasdan Lead yopilmaydi.");
+                    return;
+                }
+            }
+
             const originalNext = item.nextElementSibling;
             const originalPosition = Array.from(sourceZone.querySelectorAll(":scope > [data-kanban-item]")).indexOf(item);
             const validReference = beforeItem?.parentElement === targetZone && beforeItem !== item ? beforeItem : null;
@@ -99,14 +166,18 @@
                         "X-CSRFToken": csrfToken(),
                         "X-Requested-With": "XMLHttpRequest",
                     },
-                    body: JSON.stringify({ [updateField]: newValue, position: newPosition }),
+                    body: JSON.stringify({
+                        [updateField]: newValue,
+                        position: newPosition,
+                        ...(lostReason ? { lost_reason: lostReason } : {}),
+                    }),
                 });
-                if (!response.ok) throw new Error("Kanban update failed");
                 const result = await response.json();
+                if (!response.ok) throw new Error(result.error || errorMessage);
                 item.classList.add("is-saved");
                 window.setTimeout(() => item.classList.remove("is-saved"), 700);
                 announce(result.message || "O'zgarish saqlandi.");
-            } catch (_error) {
+            } catch (error) {
                 const reference = originalNext?.parentElement === sourceZone ? originalNext : null;
                 sourceZone.insertBefore(item, reference);
                 item.dataset.kanbanValue = oldValue;
@@ -114,7 +185,7 @@
                 updateColumn(targetZone);
                 item.classList.add("is-save-error");
                 window.setTimeout(() => item.classList.remove("is-save-error"), 1200);
-                announce(errorMessage);
+                announce(error.message || errorMessage);
             } finally {
                 delete item.dataset.kanbanPending;
                 item.classList.remove("is-saving");

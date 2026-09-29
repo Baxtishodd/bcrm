@@ -1,14 +1,49 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from apps.common.choices import Currency
+from apps.common.images import OptimizedImageField
 from apps.common.models import TimeStampedModel
 
 
 class Organization(TimeStampedModel):
     name = models.CharField(max_length=200)
+    legal_name = models.CharField(max_length=250, blank=True)
+    short_name = models.CharField(max_length=100, blank=True)
     slug = models.SlugField(max_length=80, unique=True)
     tax_id = models.CharField(max_length=30, blank=True)
     phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    website = models.URLField(blank=True)
+    legal_address = models.TextField(blank=True)
+    production_address = models.TextField(blank=True)
+    bank_name = models.CharField(max_length=200, blank=True)
+    bank_account = models.CharField(max_length=50, blank=True)
+    bank_code = models.CharField(max_length=30, blank=True)
+    director_name = models.CharField(max_length=150, blank=True)
+    logo = OptimizedImageField(blank=True)
+    sidebar_logo = OptimizedImageField(blank=True)
+    signature_image = OptimizedImageField(blank=True)
+    stamp_image = OptimizedImageField(blank=True)
+    default_currency = models.CharField(
+        max_length=3,
+        choices=Currency.choices,
+        default=Currency.USD,
+    )
+    default_incoterm = models.CharField(max_length=40, blank=True)
+    default_delivery_terms = models.TextField(blank=True)
+    default_payment_terms = models.TextField(blank=True)
+    quotation_number_prefix = models.CharField(max_length=12, default="QT")
+    order_number_prefix = models.CharField(max_length=12, default="SO")
+    quotation_validity_days = models.PositiveSmallIntegerField(
+        default=14,
+        validators=[MinValueValidator(1), MaxValueValidator(365)],
+    )
+    document_footer = models.TextField(blank=True)
+    email_sender_name = models.CharField(max_length=150, blank=True)
+    telegram_username = models.CharField(max_length=100, blank=True)
+    whatsapp_phone = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -16,6 +51,10 @@ class Organization(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    @property
+    def document_name(self):
+        return self.legal_name or self.name
 
 
 class Branch(TimeStampedModel):
@@ -77,4 +116,3 @@ class Membership(TimeStampedModel):
                 name="uniq_org_user",
             )
         ]
-

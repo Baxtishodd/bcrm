@@ -4,10 +4,16 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from apps.common.choices import Currency
 from apps.common.models import OrganizationScopedModel
 
 
 class Quotation(OrganizationScopedModel):
+    class DocumentLanguage(models.TextChoices):
+        UZ = "uz", "O'zbekcha"
+        RU = "ru", "Ruscha"
+        EN = "en", "Inglizcha"
+
     class Status(models.TextChoices):
         DRAFT = "draft", "Qoralama"
         SENT = "sent", "Yuborildi"
@@ -20,28 +26,56 @@ class Quotation(OrganizationScopedModel):
         "customers.CustomerCompany",
         on_delete=models.PROTECT,
     )
+    contact = models.ForeignKey(
+        "customers.Contact",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="quotations",
+    )
     lead = models.ForeignKey(
         "crm.Lead",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        related_name="quotations",
     )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.DRAFT,
     )
-    currency = models.CharField(max_length=3, default="UZS")
+    currency = models.CharField(
+        max_length=3,
+        choices=Currency.choices,
+        default=Currency.UZS,
+    )
     valid_until = models.DateField(null=True, blank=True)
     discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     delivery_terms = models.CharField(max_length=255, blank=True)
     payment_terms = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
+    document_language = models.CharField(
+        max_length=2,
+        choices=DocumentLanguage.choices,
+        default=DocumentLanguage.UZ,
+    )
+    document_title = models.CharField(max_length=200, default="TIJORAT TAKLIFI")
+    document_intro = models.TextField(blank=True)
+    document_footer = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
         on_delete=models.SET_NULL,
+        related_name="created_quotations",
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_quotations",
     )
 
     class Meta:
@@ -84,6 +118,12 @@ class QuotationLine(OrganizationScopedModel):
         related_name="lines",
     )
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT)
+    variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
     description = models.CharField(max_length=255, blank=True)
     quantity = models.DecimalField(max_digits=14, decimal_places=3)
     unit_price = models.DecimalField(max_digits=18, decimal_places=2)

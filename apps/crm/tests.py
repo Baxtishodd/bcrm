@@ -9,7 +9,8 @@ from apps.accounts.models import User
 from apps.customers.models import CustomerCompany
 from apps.organizations.models import Membership, Organization
 
-from .models import Activity, Lead
+from .forms import LeadForm
+from .models import Activity, Lead, PipelineStage
 
 
 class DemoLeadSeedTests(TestCase):
@@ -93,7 +94,36 @@ class TaskFrontendTests(TestCase):
             user=self.user,
             role=Membership.Role.SALES,
         )
-        self.lead = Lead.objects.create(organization=self.organization, title="New order")
+        self.customer = CustomerCompany.objects.create(
+            organization=self.organization,
+            name="Task customer",
+        )
+        self.open_stage = PipelineStage.objects.create(
+            organization=self.organization,
+            name="Muzokara",
+            position=10,
+            probability=50,
+        )
+        self.won_stage = PipelineStage.objects.create(
+            organization=self.organization,
+            name="Yutildi",
+            position=20,
+            probability=100,
+            is_closed=True,
+        )
+        self.lost_stage = PipelineStage.objects.create(
+            organization=self.organization,
+            name="Yutqazildi",
+            position=30,
+            probability=0,
+            is_closed=True,
+        )
+        self.lead = Lead.objects.create(
+            organization=self.organization,
+            title="New order",
+            customer=self.customer,
+            stage=self.open_stage,
+        )
         self.task = Activity.objects.create(
             organization=self.organization,
             lead=self.lead,
@@ -145,6 +175,7 @@ class TaskFrontendTests(TestCase):
         self.assertContains(response, "data-kanban-dropzone")
         self.assertContains(response, "data-kanban-update-url")
         self.assertContains(response, "js/kanban.js")
+        self.assertIn("no-cache", response.headers["Cache-Control"])
 
     def test_lead_status_can_be_updated_from_kanban(self):
         response = self.client.post(
@@ -222,3 +253,92 @@ class TaskFrontendTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_kanban_requires_reason_and_syncs_lost_stage(self):
+        rejected = self.client.post(
+            reverse("crm:status-update", args=[self.lead.public_id]),
+            data='{"status":"lost","position":0}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(rejected.status_code, 400)
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.status, Lead.Status.NEW)
+
+        accepted = self.client.post(
+            reverse("crm:status-update", args=[self.lead.public_id]),
+            data=('{"status":"lost","position":0,"lost_reason":"Yetkazish muddati mos kelmadi"}'),
+            content_type="application/json",
+        )
+
+        self.assertEqual(accepted.status_code, 200)
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.status, Lead.Status.LOST)
+        self.assertEqual(self.lead.stage, self.lost_stage)
+        self.assertEqual(self.lead.lost_reason, "Yetkazish muddati mos kelmadi")
+
+        reordered = self.client.post(
+            reverse("crm:status-update", args=[self.lead.public_id]),
+            data='{"status":"lost","position":0}',
+            content_type="application/json",
+        )
+        self.assertEqual(reordered.status_code, 200)
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.lost_reason, "Yetkazish muddati mos kelmadi")
+
+    def test_kanban_syncs_won_stage_and_clears_lost_reason(self):
+        self.lead.status = Lead.Status.LOST
+        self.lead.stage = self.lost_stage
+        self.lead.lost_reason = "Old reason"
+        self.lead.save()
+
+        response = self.client.post(
+            reverse("crm:status-update", args=[self.lead.public_id]),
+            data='{"status":"won","position":0}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.lead.refresh_from_db()
+        self.assertEqual(self.lead.status, Lead.Status.WON)
+        self.assertEqual(self.lead.stage, self.won_stage)
+        self.assertEqual(self.lead.lost_reason, "")
+
+    def test_won_status_requires_customer(self):
+        lead = Lead.objects.create(
+            organization=self.organization,
+            title="Customer missing",
+            stage=self.open_stage,
+        )
+
+        response = self.client.post(
+            reverse("crm:status-update", args=[lead.public_id]),
+            data='{"status":"won","position":0}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        lead.refresh_from_db()
+        self.assertEqual(lead.status, Lead.Status.NEW)
+
+    def test_form_rejects_open_stage_with_terminal_status(self):
+        form = LeadForm(
+            data={
+                "title": self.lead.title,
+                "business_direction": Lead.BusinessDirection.OTHER,
+                "customer": self.customer.pk,
+                "stage": self.open_stage.pk,
+                "status": Lead.Status.WON,
+                "priority": Lead.Priority.MEDIUM,
+                "source": "",
+                "estimated_value": "0",
+                "currency": "UZS",
+                "lost_reason": "",
+                "description": "",
+            },
+            instance=self.lead,
+            organization=self.organization,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("stage", form.errors)

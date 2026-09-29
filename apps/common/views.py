@@ -17,6 +17,7 @@ def dashboard(request):
         .first()
     )
     organization = membership.organization if membership else None
+    request.membership = membership
     leads = Lead.objects.none()
     customers = CustomerCompany.objects.none()
     tasks = Activity.objects.none()

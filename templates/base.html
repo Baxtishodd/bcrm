@@ -5,13 +5,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}BCRM{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260928-3">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260929-4">
 </head>
 <body>
 <div class="app-shell">
     <aside class="sidebar">
         <a class="brand" href="{% url 'dashboard' %}">
+            {% if organization.sidebar_logo %}
+            <img class="brand-logo brand-logo-inverse" src="{{ organization.sidebar_logo.url }}" alt="{{ organization.name }}">
+            {% elif organization.logo %}
+            <span class="brand-logo-surface">
+                <img class="brand-logo" src="{{ organization.logo.url }}" alt="{{ organization.name }}">
+            </span>
+            {% else %}
             BCRM<span>textile</span>
+            {% endif %}
         </a>
         <nav>
             <a{% if request.resolver_match.url_name == 'dashboard' %} class="active" aria-current="page"{% endif %}
@@ -26,6 +34,10 @@
                href="{% url 'catalog:list' %}">Mahsulotlar</a>
             <a{% if request.resolver_match.namespace == 'sales' %} class="active" aria-current="page"{% endif %}
                href="{% url 'sales:list' %}">Savdo</a>
+            {% if organization and request.membership.role == 'owner' or organization and request.membership.role == 'director' or user.is_superuser %}
+            <a{% if request.resolver_match.namespace == 'organizations' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'organizations:settings' %}">Tashkilot sozlamalari</a>
+            {% endif %}
             {% if user.is_staff %}
             <a{% if request.resolver_match.namespace == 'admin' %} class="active" aria-current="page"{% endif %}
                href="/admin/">Tizim sozlamalari</a>

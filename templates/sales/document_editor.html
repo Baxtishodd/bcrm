@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}{{ quotation.number }} hujjat muharriri — BCRM{% endblock %}
+{% block heading %}Savdo taklifi muharriri{% endblock %}
+
+{% block content %}
+{% url 'sales:detail' quotation.public_id as quotation_url %}
+{% include "shared/page_navigation.html" with back_url=quotation_url back_label="Taklifga qaytish" parent_label=quotation.number current_label="Hujjat muharriri" %}
+
+<form method="post" class="document-editor" id="document-editor-form">
+    {% csrf_token %}
+    {{ line_formset.management_form }}
+    {% if form.non_field_errors or line_formset.non_form_errors %}
+    <div class="form-errors">{{ form.non_field_errors }}{{ line_formset.non_form_errors }}</div>
+    {% endif %}
+
+    <div class="document-toolbar">
+        <div>
+            <strong>Hujjatni bevosita tahrirlang</strong>
+            <small>Mahsulot va summalar saqlangandan keyin PDF'ga avtomatik o'tadi.</small>
+        </div>
+        <div class="button-row">
+            <a class="button button-secondary" href="{% url 'sales:pdf' quotation.public_id %}">PDF yuklab olish</a>
+            <button class="button" type="submit">Saqlash</button>
+        </div>
+    </div>
+
+    <article class="document-canvas">
+        <header class="document-header">
+            <div class="document-company">
+                {% if organization.logo %}<img src="{{ organization.logo.url }}" alt="{{ organization.name }}">{% endif %}
+                <div>
+                    <strong>{{ organization.document_name }}</strong>
+                    {% if organization.tax_id %}<span>STIR: {{ organization.tax_id }}</span>{% endif %}
+                    {% if organization.phone %}<span>{{ organization.phone }}</span>{% endif %}
+                    {% if organization.email %}<span>{{ organization.email }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="document-heading-fields">
+                {{ form.document_title }}
+                <span>№ {{ quotation.number }}</span>
+                <span>{{ quotation.created_at|date:"d.m.Y" }}</span>
+            </div>
+        </header>
+
+        <div class="document-meta-grid">
+            <label><span>Mijoz</span><strong>{{ quotation.customer.name }}</strong></label>
+            <label><span>Kontakt</span><strong>{{ quotation.contact|default:"—" }}</strong></label>
+            <label><span>{{ form.document_language.label }}</span>{{ form.document_language }}</label>
+            <label><span>{{ form.valid_until.label }}</span>{{ form.valid_until }}</label>
+        </div>
+
+        <div class="document-block">
+            <label for="{{ form.document_intro.id_for_label }}">{{ form.document_intro.label }}</label>
+            {{ form.document_intro }}
+            {% for error in form.document_intro.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div class="document-lines-wrap">
+            <table class="document-lines" id="document-lines">
+                <thead><tr><th>Mahsulot</th><th>Variant</th><th>Tavsif</th><th>Miqdor</th><th>Narx</th><th>Jami</th><th></th></tr></thead>
+                <tbody id="document-line-body">
+                {% for line_form in line_formset %}
+                <tr class="document-line-row{% if not line_form.instance.pk %} document-line-new{% endif %}">
+                    <td>{{ line_form.id }}{{ line_form.product }}{% for error in line_form.product.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.variant }}{% for error in line_form.variant.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.description }}{% for error in line_form.description.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.quantity }}{% for error in line_form.quantity.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.unit_price }}{% for error in line_form.unit_price.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td class="line-total">{% if line_form.instance.pk %}{{ line_form.instance.line_total }}{% else %}0{% endif %}</td>
+                    <td class="document-line-remove">{{ line_form.DELETE }}<button type="button" class="link-button remove-line">Olib tashlash</button></td>
+                </tr>
+                {% if line_form.non_field_errors %}<tr><td colspan="7" class="form-errors">{{ line_form.non_field_errors }}</td></tr>{% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+            <button class="button button-secondary button-small" type="button" id="add-document-line">+ Qator qo'shish</button>
+        </div>
+
+        <template id="empty-document-line">
+            <tr class="document-line-row document-line-new">
+                <td>{{ line_formset.empty_form.id }}{{ line_formset.empty_form.product }}</td>
+                <td>{{ line_formset.empty_form.variant }}</td>
+                <td>{{ line_formset.empty_form.description }}</td>
+                <td>{{ line_formset.empty_form.quantity }}</td>
+                <td>{{ line_formset.empty_form.unit_price }}</td>
+                <td class="line-total">0</td>
+                <td class="document-line-remove">{{ line_formset.empty_form.DELETE }}<button type="button" class="link-button remove-line">Olib tashlash</button></td>
+            </tr>
+        </template>
+
+        <section class="document-calculation">
+            <div class="document-small-fields">
+                <label><span>{{ form.currency.label }}</span>{{ form.currency }}</label>
+                <label><span>{{ form.discount_percent.label }}</span>{{ form.discount_percent }}</label>
+                <label><span>{{ form.tax_percent.label }}</span>{{ form.tax_percent }}</label>
+            </div>
+            <dl>
+                <div><dt>Oraliq jami</dt><dd id="editor-subtotal">{{ quotation.subtotal }}</dd></div>
+                <div><dt>Chegirma</dt><dd id="editor-discount">-{{ quotation.discount_amount }}</dd></div>
+                <div><dt>Soliq</dt><dd id="editor-tax">{{ quotation.tax_amount }}</dd></div>
+                <div class="document-grand-total"><dt>Umumiy</dt><dd id="editor-total">{{ quotation.total }} {{ quotation.currency }}</dd></div>
+            </dl>
+        </section>
+
+        <div class="document-terms-grid">
+            <div class="document-block"><label for="{{ form.delivery_terms.id_for_label }}">{{ form.delivery_terms.label }}</label>{{ form.delivery_terms }}</div>
+            <div class="document-block"><label for="{{ form.payment_terms.id_for_label }}">{{ form.payment_terms.label }}</label>{{ form.payment_terms }}</div>
+        </div>
+        <div class="document-block"><label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>{{ form.notes }}</div>
+        <div class="document-block document-footer-field"><label for="{{ form.document_footer.id_for_label }}">{{ form.document_footer.label }}</label>{{ form.document_footer }}</div>
+    </article>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+    const body = document.getElementById('document-line-body');
+    const totalForms = document.getElementById('id_lines-TOTAL_FORMS');
+    const template = document.getElementById('empty-document-line');
+    const currency = document.getElementById('id_currency');
+    const discount = document.getElementById('id_discount_percent');
+    const tax = document.getElementById('id_tax_percent');
+
+    function numberValue(input) {
+        const value = parseFloat(input?.value || '0');
+        return Number.isFinite(value) ? value : 0;
+    }
+    function calculate() {
+        let subtotal = 0;
+        body.querySelectorAll('.document-line-row').forEach(row => {
+            const deleted = row.querySelector('input[name$="-DELETE"]');
+            const quantity = numberValue(row.querySelector('input[name$="-quantity"]'));
+            const price = numberValue(row.querySelector('input[name$="-unit_price"]'));
+            const lineTotal = deleted?.checked ? 0 : quantity * price;
+            row.querySelector('.line-total').textContent = lineTotal.toFixed(2);
+            subtotal += lineTotal;
+        });
+        const discountAmount = subtotal * numberValue(discount) / 100;
+        const taxAmount = (subtotal - discountAmount) * numberValue(tax) / 100;
+        const code = currency?.value?.toUpperCase() || '';
+        document.getElementById('editor-subtotal').textContent = `${subtotal.toFixed(2)} ${code}`;
+        document.getElementById('editor-discount').textContent = `-${discountAmount.toFixed(2)} ${code}`;
+        document.getElementById('editor-tax').textContent = `${taxAmount.toFixed(2)} ${code}`;
+        document.getElementById('editor-total').textContent = `${(subtotal - discountAmount + taxAmount).toFixed(2)} ${code}`;
+    }
+    function bindRow(row) {
+        row.querySelectorAll('input, select').forEach(field => field.addEventListener('input', calculate));
+        row.querySelector('.remove-line')?.addEventListener('click', () => {
+            const deleted = row.querySelector('input[name$="-DELETE"]');
+            if (deleted) {
+                deleted.checked = true;
+                row.hidden = true;
+            } else {
+                row.remove();
+            }
+            calculate();
+        });
+    }
+    body.querySelectorAll('.document-line-row').forEach(bindRow);
+    document.getElementById('add-document-line').addEventListener('click', () => {
+        const index = parseInt(totalForms.value, 10);
+        const html = template.innerHTML.replaceAll('__prefix__', index);
+        body.insertAdjacentHTML('beforeend', html);
+        totalForms.value = index + 1;
+        bindRow(body.lastElementChild);
+        calculate();
+    });
+    [currency, discount, tax].forEach(field => field?.addEventListener('input', calculate));
+    document.querySelectorAll('.document-block textarea').forEach(field => {
+        const resize = () => { field.style.height = 'auto'; field.style.height = `${field.scrollHeight}px`; };
+        field.addEventListener('input', resize);
+        resize();
+    });
+    calculate();
+})();
+</script>
+{% endblock %}

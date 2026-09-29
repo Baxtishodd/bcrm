@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Tashkilot sozlamalari — BCRM{% endblock %}
+{% block heading %}Tashkilot sozlamalari{% endblock %}
+
+{% block content %}
+{% include "shared/page_navigation.html" with back_url="/" back_label="Ortga" current_label="Tashkilot sozlamalari" %}
+<form method="post" enctype="multipart/form-data" class="settings-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+
+    <section class="panel settings-section">
+        <div class="panel-heading"><div><p class="eyebrow">Profil</p><h2>Tashkilot rekvizitlari</h2></div></div>
+        <div class="settings-grid">
+            {% include "organizations/_settings_field.html" with field=form.name %}
+            {% include "organizations/_settings_field.html" with field=form.short_name %}
+            {% include "organizations/_settings_field.html" with field=form.legal_name full=True %}
+            {% include "organizations/_settings_field.html" with field=form.tax_id %}
+            {% include "organizations/_settings_field.html" with field=form.director_name %}
+            {% include "organizations/_settings_field.html" with field=form.phone %}
+            {% include "organizations/_settings_field.html" with field=form.email %}
+            {% include "organizations/_settings_field.html" with field=form.website full=True %}
+            {% include "organizations/_settings_field.html" with field=form.legal_address full=True %}
+            {% include "organizations/_settings_field.html" with field=form.production_address full=True %}
+        </div>
+    </section>
+
+    <section class="panel settings-section">
+        <div class="panel-heading"><div><p class="eyebrow">Bank</p><h2>Bank rekvizitlari</h2></div></div>
+        <div class="settings-grid">
+            {% include "organizations/_settings_field.html" with field=form.bank_name full=True %}
+            {% include "organizations/_settings_field.html" with field=form.bank_account %}
+            {% include "organizations/_settings_field.html" with field=form.bank_code %}
+        </div>
+    </section>
+
+    <section class="panel settings-section">
+        <div class="panel-heading"><div><p class="eyebrow">Savdo</p><h2>Standart savdo shartlari</h2></div></div>
+        <div class="settings-grid">
+            {% include "organizations/_settings_field.html" with field=form.default_currency %}
+            {% include "organizations/_settings_field.html" with field=form.default_incoterm %}
+            {% include "organizations/_settings_field.html" with field=form.quotation_number_prefix %}
+            {% include "organizations/_settings_field.html" with field=form.order_number_prefix %}
+            {% include "organizations/_settings_field.html" with field=form.quotation_validity_days %}
+            <div></div>
+            {% include "organizations/_settings_field.html" with field=form.default_delivery_terms full=True %}
+            {% include "organizations/_settings_field.html" with field=form.default_payment_terms full=True %}
+        </div>
+    </section>
+
+    <section class="panel settings-section">
+        <div class="panel-heading"><div><p class="eyebrow">Hujjatlar</p><h2>Logotip, imzo va muhr</h2></div></div>
+        <div class="settings-grid">
+            {% include "organizations/_settings_field.html" with field=form.logo %}
+            {% include "organizations/_settings_field.html" with field=form.sidebar_logo %}
+            {% include "organizations/_settings_field.html" with field=form.signature_image %}
+            {% include "organizations/_settings_field.html" with field=form.stamp_image %}
+            {% include "organizations/_settings_field.html" with field=form.document_footer full=True %}
+        </div>
+    </section>
+
+    <section class="panel settings-section">
+        <div class="panel-heading"><div><p class="eyebrow">Aloqa</p><h2>Integratsiya identifikatorlari</h2></div></div>
+        <div class="settings-note">API tokenlar va parollar bu yerda saqlanmaydi; ular serverdagi <code>.env</code> orqali boshqariladi.</div>
+        <div class="settings-grid">
+            {% include "organizations/_settings_field.html" with field=form.email_sender_name %}
+            {% include "organizations/_settings_field.html" with field=form.telegram_username %}
+            {% include "organizations/_settings_field.html" with field=form.whatsapp_phone %}
+        </div>
+    </section>
+
+    <div class="settings-actions">
+        <a class="button button-secondary" href="/">Bekor qilish</a>
+        <button class="button" type="submit">Sozlamalarni saqlash</button>
+    </div>
+</form>
+{% endblock %}

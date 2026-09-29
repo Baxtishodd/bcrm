@@ -11,7 +11,15 @@ class QuotationLineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuotationLine
-        fields = ("public_id", "product", "description", "quantity", "unit_price", "line_total")
+        fields = (
+            "public_id",
+            "product",
+            "variant",
+            "description",
+            "quantity",
+            "unit_price",
+            "line_total",
+        )
 
 
 class QuotationSerializer(serializers.ModelSerializer):
@@ -30,13 +38,26 @@ class QuotationSerializer(serializers.ModelSerializer):
         if organization is None:
             raise serializers.ValidationError("Foydalanuvchiga korxona biriktirilmagan.")
         customer = attrs.get("customer", getattr(self.instance, "customer", None))
+        contact = attrs.get("contact", getattr(self.instance, "contact", None))
         lead = attrs.get("lead", getattr(self.instance, "lead", None))
+        assigned_to = attrs.get("assigned_to", getattr(self.instance, "assigned_to", None))
         if customer and customer.organization_id != organization.id:
             raise serializers.ValidationError({"customer": "Bu mijoz boshqa korxonaga tegishli."})
         if lead and lead.organization_id != organization.id:
             raise serializers.ValidationError({"lead": "Bu lead boshqa korxonaga tegishli."})
         if lead and lead.customer_id and customer and lead.customer_id != customer.id:
             raise serializers.ValidationError({"lead": "Lead tanlangan mijozga tegishli emas."})
+        if contact and contact.organization_id != organization.id:
+            raise serializers.ValidationError({"contact": "Bu kontakt boshqa korxonaga tegishli."})
+        if contact and customer and contact.company_id != customer.id:
+            raise serializers.ValidationError(
+                {"contact": "Kontakt tanlangan mijozga tegishli emas."}
+            )
+        if assigned_to and not assigned_to.memberships.filter(
+            organization=organization,
+            is_active=True,
+        ).exists():
+            raise serializers.ValidationError({"assigned_to": "Xodim bu korxonaga tegishli emas."})
         return attrs
 
 
@@ -50,7 +71,9 @@ class QuotationViewSet(viewsets.ModelViewSet):
             return Quotation.objects.none()
         return Quotation.objects.filter(organization=organization).select_related(
             "customer",
+            "contact",
             "lead",
+            "assigned_to",
             "created_by",
         ).prefetch_related("lines")
 

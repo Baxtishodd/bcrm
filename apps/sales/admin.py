@@ -25,9 +25,11 @@ class QuotationAdmin(admin.ModelAdmin):
     list_display = (
         "number",
         "customer",
+        "contact",
         "status",
         "currency",
         "valid_until",
+        "assigned_to",
         "created_by",
     )
     list_filter = ("status", "currency")

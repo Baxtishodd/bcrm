@@ -2,30 +2,38 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import HttpResponseBadRequest, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.common.tenancy import organization_required
+from apps.sales.models import Quotation
 
 from .forms import ActivityForm, LeadForm, TaskForm
-from .models import Activity, Lead
+from .models import Activity, Lead, PipelineStage
 
 
 @login_required
 @organization_required
 @ensure_csrf_cookie
+@never_cache
 def lead_list(request):
     query = request.GET.get("q", "").strip()
     direction = request.GET.get("direction", "")
-    leads = Lead.objects.filter(
-        organization=request.organization,
-    ).select_related("customer", "stage", "assigned_to").order_by(
-        "kanban_position",
-        "-created_at",
+    leads = (
+        Lead.objects.filter(
+            organization=request.organization,
+        )
+        .select_related("customer", "stage", "assigned_to")
+        .order_by(
+            "kanban_position",
+            "-created_at",
+        )
     )
     if query:
         leads = leads.filter(
@@ -35,10 +43,7 @@ def lead_list(request):
         )
     if direction:
         leads = leads.filter(business_direction=direction)
-    columns = [
-        (value, label, leads.filter(status=value))
-        for value, label in Lead.Status.choices
-    ]
+    columns = [(value, label, leads.filter(status=value)) for value, label in Lead.Status.choices]
     return render(
         request,
         "crm/list.html",
@@ -86,14 +91,38 @@ def lead_detail(request, public_id):
             "contact",
             "stage",
             "assigned_to",
-        ).prefetch_related("activities"),
+        ).prefetch_related(
+            "activities",
+            Prefetch(
+                "quotations",
+                queryset=Quotation.objects.select_related("salesorder").prefetch_related("lines"),
+            ),
+        ),
         public_id=public_id,
         organization=request.organization,
+    )
+    quotations = list(lead.quotations.all())
+    linked_order = next(
+        (quotation.salesorder for quotation in quotations if hasattr(quotation, "salesorder")),
+        None,
+    )
+    orderable_quotation = next(
+        (
+            quotation
+            for quotation in quotations
+            if quotation.lines.all() and not hasattr(quotation, "salesorder")
+        ),
+        None,
     )
     return render(
         request,
         "crm/detail.html",
-        {"lead": lead, "organization": request.organization},
+        {
+            "lead": lead,
+            "linked_order": linked_order,
+            "orderable_quotation": orderable_quotation,
+            "organization": request.organization,
+        },
     )
 
 
@@ -138,6 +167,7 @@ def lead_status_update(request, public_id):
 
     status = payload.get("status")
     position = payload.get("position")
+    lost_reason = str(payload.get("lost_reason") or "").strip()
     valid_statuses = dict(Lead.Status.choices)
     if status not in valid_statuses:
         return JsonResponse({"error": "Noto'g'ri lead holati."}, status=400)
@@ -151,6 +181,38 @@ def lead_status_update(request, public_id):
             organization=request.organization,
         )
         old_status = lead.status
+        if status in {Lead.Status.WON, Lead.Status.LOST}:
+            probability = 100 if status == Lead.Status.WON else 0
+            lead.stage = (
+                PipelineStage.objects.filter(
+                    organization=request.organization,
+                    is_closed=True,
+                    probability=probability,
+                )
+                .order_by("position", "name")
+                .first()
+            )
+        elif lead.stage_id and lead.stage.is_closed:
+            lead.stage = (
+                PipelineStage.objects.filter(
+                    organization=request.organization,
+                    is_closed=False,
+                )
+                .order_by("position", "name")
+                .first()
+            )
+        lead.status = status
+        if status == Lead.Status.LOST:
+            lead.lost_reason = lost_reason or lead.lost_reason
+        else:
+            lead.lost_reason = ""
+        try:
+            lead.full_clean()
+        except ValidationError as error:
+            return JsonResponse(
+                {"error": " ".join(error.messages)},
+                status=400,
+            )
         affected_statuses = {old_status, status}
         affected_leads = list(
             Lead.objects.select_for_update()
@@ -161,17 +223,13 @@ def lead_status_update(request, public_id):
             .order_by("kanban_position", "-created_at")
         )
         source_leads = [
-            item for item in affected_leads
-            if item.status == old_status and item.pk != lead.pk
+            item for item in affected_leads if item.status == old_status and item.pk != lead.pk
         ]
         target_leads = [
-            item for item in affected_leads
-            if item.status == status and item.pk != lead.pk
+            item for item in affected_leads if item.status == status and item.pk != lead.pk
         ]
         target_position = min(position, len(target_leads))
         target_leads.insert(target_position, lead)
-        lead.status = status
-
         ordered_leads = target_leads
         if old_status != status:
             ordered_leads = source_leads + target_leads
@@ -181,7 +239,7 @@ def lead_status_update(request, public_id):
             item.kanban_position = index
         Lead.objects.bulk_update(
             ordered_leads,
-            ["status", "kanban_position"],
+            ["status", "stage", "lost_reason", "kanban_position"],
         )
         lead.save(update_fields=["updated_at"])
 

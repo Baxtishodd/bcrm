@@ -10,6 +10,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
+from pypdf import PdfReader
 
 from apps.accounts.models import User
 from apps.common.images import MAX_IMAGE_UPLOAD_BYTES, validate_image_upload
@@ -230,6 +231,137 @@ class PriceListTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, visible.number)
         self.assertNotContains(response, "PRIVATE-51")
+
+    def test_offer_document_editor_updates_document_and_lines(self):
+        product = Product.objects.create(
+            organization=self.organization,
+            article="YARN-EDITOR",
+            name="Editor yarn",
+            category=Product.Category.YARN,
+            unit=Product.Unit.KILOGRAM,
+            list_price=Decimal("2.45"),
+        )
+        offer = PriceList.objects.create(
+            organization=self.organization,
+            number="51/Y",
+            title="Old title",
+            category=Product.Category.YARN,
+        )
+        line = PriceListLine.objects.create(
+            organization=self.organization,
+            price_list=offer,
+            product=product,
+            unit=Product.Unit.KILOGRAM,
+            unit_price=Decimal("2.4500"),
+        )
+
+        response = self.client.post(
+            reverse("catalog:offer-document-edit", args=[offer.public_id]),
+            {
+                "number": "51/Y",
+                "document_type": PriceList.DocumentType.PRICE_LIST,
+                "title": "Export yarn price list",
+                "category": Product.Category.YARN,
+                "issue_date": timezone.localdate().isoformat(),
+                "valid_until": (timezone.localdate() + timedelta(days=10)).isoformat(),
+                "currency": "USD",
+                "incoterm": "FCA",
+                "delivery_place": "Koson, UZB",
+                "incoterms_version": "2020",
+                "payment_terms": "100% prepayment",
+                "alternative_delivery_terms": "CPT by agreement",
+                "language": PriceList.Language.EN,
+                "status": PriceList.Status.ACTIVE,
+                "notes": "Test note",
+                "document_intro": "Dear partner",
+                "document_footer": "Valid for listed quantities.",
+                "lines-TOTAL_FORMS": "1",
+                "lines-INITIAL_FORMS": "1",
+                "lines-MIN_NUM_FORMS": "0",
+                "lines-MAX_NUM_FORMS": "1000",
+                "lines-0-id": str(line.id),
+                "lines-0-product": str(product.id),
+                "lines-0-description_snapshot": "100% cotton, compact",
+                "lines-0-available_quantity": "25000",
+                "lines-0-unit": Product.Unit.KILOGRAM,
+                "lines-0-unit_price": "2.55",
+                "lines-0-planned_loading_date": (
+                    timezone.localdate() + timedelta(days=20)
+                ).isoformat(),
+                "lines-0-minimum_order_quantity": "1000",
+                "lines-0-sort_order": "1",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("catalog:offer-document-edit", args=[offer.public_id]),
+        )
+        offer.refresh_from_db()
+        line.refresh_from_db()
+        self.assertEqual(offer.title, "Export yarn price list")
+        self.assertEqual(offer.currency, "USD")
+        self.assertEqual(offer.document_intro, "Dear partner")
+        self.assertEqual(line.unit_price, Decimal("2.5500"))
+        self.assertEqual(line.minimum_order_quantity, Decimal("1000.000"))
+
+    def test_offer_pdf_contains_company_and_product_details(self):
+        product = Product.objects.create(
+            organization=self.organization,
+            article="WOVEN-243",
+            name="Cotton poplin",
+            category=Product.Category.WOVEN_FABRIC,
+            unit=Product.Unit.METER,
+        )
+        WovenFabricSpecification.objects.create(
+            organization=self.organization,
+            product=product,
+            composition="100% cotton",
+            width_cm=Decimal("243"),
+            gsm=110,
+            weave="1/1",
+        )
+        offer = PriceList.objects.create(
+            organization=self.organization,
+            number="51/TT",
+            title="Woven export offer",
+            category=Product.Category.WOVEN_FABRIC,
+            language=PriceList.Language.EN,
+        )
+        PriceListLine.objects.create(
+            organization=self.organization,
+            price_list=offer,
+            product=product,
+            unit=Product.Unit.METER,
+            unit_price=Decimal("0.7800"),
+        )
+
+        response = self.client.get(reverse("catalog:offer-pdf", args=[offer.public_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn("51-TT_price-list", response["Content-Disposition"])
+        text = "\n".join(
+            page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages
+        )
+        self.assertIn("Bunyodkor Textile", text)
+        self.assertIn("WOVEN-243", text)
+        self.assertIn("Woven export offer", text)
+
+    def test_offer_editor_and_pdf_are_tenant_scoped(self):
+        hidden = PriceList.objects.create(
+            organization=self.other_organization,
+            number="PRIVATE-PDF",
+        )
+
+        editor_response = self.client.get(
+            reverse("catalog:offer-document-edit", args=[hidden.public_id])
+        )
+        pdf_response = self.client.get(reverse("catalog:offer-pdf", args=[hidden.public_id]))
+
+        self.assertEqual(editor_response.status_code, 404)
+        self.assertEqual(pdf_response.status_code, 404)
 
     def test_yarn_specification_form_saves_typed_fields(self):
         product = Product.objects.create(

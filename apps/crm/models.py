@@ -1,6 +1,8 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
+from apps.common.choices import Currency
 from apps.common.models import OrganizationScopedModel
 
 
@@ -85,7 +87,11 @@ class Lead(OrganizationScopedModel):
         decimal_places=2,
         default=0,
     )
-    currency = models.CharField(max_length=3, default="UZS")
+    currency = models.CharField(
+        max_length=3,
+        choices=Currency.choices,
+        default=Currency.UZS,
+    )
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -106,6 +112,50 @@ class Lead(OrganizationScopedModel):
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.stage_id:
+            if self.stage.organization_id != self.organization_id:
+                errors["stage"] = "Bosqich ushbu tashkilotga tegishli emas."
+            elif self.stage.is_closed:
+                expected_status = None
+                if self.stage.probability == 100:
+                    expected_status = self.Status.WON
+                elif self.stage.probability == 0:
+                    expected_status = self.Status.LOST
+                if expected_status is None:
+                    errors["stage"] = (
+                        "Yopiq bosqich ehtimoli yutilgan uchun 100%, "
+                        "yutqazilgan uchun 0% bo'lishi kerak."
+                    )
+                elif self.status != expected_status:
+                    errors["status"] = (
+                        f"«{self.stage.name}» bosqichi faqat "
+                        f"«{self.Status(expected_status).label}» holatiga mos."
+                    )
+            elif self.status in {self.Status.WON, self.Status.LOST}:
+                errors["stage"] = "Yakuniy holat uchun yopiq bosqichni tanlang."
+
+        if self.status == self.Status.LOST and not self.lost_reason.strip():
+            errors["lost_reason"] = "Yutqazilgan Lead uchun sababni kiriting."
+        if self.status != self.Status.LOST:
+            self.lost_reason = ""
+
+        if self.status == self.Status.WON and not self.customer_id:
+            errors["customer"] = "Yutilgan Lead uchun mijozni biriktiring."
+
+        if (
+            self.pk
+            and self.status != self.Status.WON
+            and self.quotations.filter(salesorder__isnull=False).exists()
+        ):
+            errors["status"] = "Buyurtmasi mavjud Lead faqat «Yutildi» holatida bo'ladi."
+
+        if errors:
+            raise ValidationError(errors)
 
 
 class Activity(OrganizationScopedModel):

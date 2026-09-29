@@ -10,7 +10,9 @@
     <div class="panel-heading">
         <div><p class="eyebrow">{{ quotation.get_status_display }}</p><h2>{{ quotation.customer }}</h2></div>
         <div class="button-row">
-            <a class="button button-secondary" target="_blank" href="{% url 'sales:print' quotation.public_id %}">Chop etish</a>
+            <a class="button" href="{% url 'sales:pdf' quotation.public_id %}">PDF yuklab olish</a>
+            <a class="button button-secondary" href="{% url 'sales:document-edit' quotation.public_id %}">Hujjat muharriri</a>
+            <a class="button button-secondary" target="_blank" href="{% url 'sales:print' quotation.public_id %}">Chop ko'rinishi</a>
             <a class="button button-secondary" href="{% url 'sales:delivery-create' quotation.public_id %}">Yuborishni qayd etish</a>
             <a class="button button-secondary" href="{% url 'sales:update' quotation.public_id %}">Tahrirlash</a>
             <a class="button" href="{% url 'sales:line-create' quotation.public_id %}">Mahsulot qo'shish</a>
@@ -19,7 +21,9 @@
     <dl class="details compact-details">
         <div><dt>Valyuta</dt><dd>{{ quotation.currency }}</dd></div>
         <div><dt>Amal qilish</dt><dd>{{ quotation.valid_until|date:"d.m.Y"|default:"—" }}</dd></div>
-        <div><dt>Lead</dt><dd>{{ quotation.lead|default:"—" }}</dd></div>
+        <div><dt>Kontakt</dt><dd>{{ quotation.contact|default:"—" }}</dd></div>
+        <div><dt>Lead</dt><dd>{% if quotation.lead %}<a class="table-link" href="{% url 'crm:detail' quotation.lead.public_id %}">{{ quotation.lead }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Mas'ul</dt><dd>{% if quotation.assigned_to %}{{ quotation.assigned_to.get_full_name|default:quotation.assigned_to.email }}{% else %}—{% endif %}</dd></div>
         <div><dt>Muallif</dt><dd>{% if quotation.created_by %}{{ quotation.created_by.get_full_name|default:quotation.created_by.email }}{% else %}—{% endif %}</dd></div>
         <div><dt>Chegirma</dt><dd>{{ quotation.discount_percent }}%</dd></div>
         <div><dt>Soliq</dt><dd>{{ quotation.tax_percent }}%</dd></div>
@@ -28,23 +32,23 @@
     </dl>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Mahsulot</th><th>Tavsif</th><th>Miqdor</th><th>Narx</th><th>Jami</th></tr></thead>
+            <thead><tr><th>Mahsulot</th><th>Variant</th><th>Tavsif</th><th>Miqdor</th><th>Narx</th><th>Jami</th></tr></thead>
             <tbody>
             {% for line in quotation.lines.all %}
             <tr>
-                <td>{{ line.product }}</td><td>{{ line.description|default:"—" }}</td>
+                <td>{{ line.product }}</td><td>{{ line.variant|default:"—" }}</td><td>{{ line.description|default:"—" }}</td>
                 <td>{{ line.quantity }}</td><td>{{ line.unit_price }} {{ quotation.currency }}</td>
                 <td>{{ line.line_total }} {{ quotation.currency }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="empty">Mahsulotlar hali qo'shilmagan.</td></tr>
+            <tr><td colspan="6" class="empty">Mahsulotlar hali qo'shilmagan.</td></tr>
             {% endfor %}
             </tbody>
             <tfoot>
-                <tr><th colspan="4">Oraliq jami</th><th>{{ quotation.subtotal }} {{ quotation.currency }}</th></tr>
-                <tr><th colspan="4">Chegirma</th><th>-{{ quotation.discount_amount }} {{ quotation.currency }}</th></tr>
-                <tr><th colspan="4">Soliq</th><th>{{ quotation.tax_amount }} {{ quotation.currency }}</th></tr>
-                <tr><th colspan="4">Umumiy</th><th>{{ quotation.total }} {{ quotation.currency }}</th></tr>
+                <tr><th colspan="5">Oraliq jami</th><th>{{ quotation.subtotal }} {{ quotation.currency }}</th></tr>
+                <tr><th colspan="5">Chegirma</th><th>-{{ quotation.discount_amount }} {{ quotation.currency }}</th></tr>
+                <tr><th colspan="5">Soliq</th><th>{{ quotation.tax_amount }} {{ quotation.currency }}</th></tr>
+                <tr><th colspan="5">Umumiy</th><th>{{ quotation.total }} {{ quotation.currency }}</th></tr>
             </tfoot>
         </table>
     </div>

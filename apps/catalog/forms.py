@@ -1,4 +1,5 @@
 from django import forms
+from django.forms import inlineformset_factory
 
 from .models import (
     Color,
@@ -164,11 +165,21 @@ class PriceListForm(forms.ModelForm):
             "language",
             "status",
             "notes",
+            "document_intro",
+            "document_footer",
         )
         widgets = {
             "issue_date": forms.DateInput(attrs={"type": "date"}),
             "valid_until": forms.DateInput(attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 4}),
+            "payment_terms": forms.Textarea(attrs={"rows": 3}),
+            "alternative_delivery_terms": forms.Textarea(attrs={"rows": 3}),
+            "document_intro": forms.Textarea(
+                attrs={"rows": 3, "placeholder": "Hamkorlarga kirish matni..."}
+            ),
+            "document_footer": forms.Textarea(
+                attrs={"rows": 3, "placeholder": "Hujjat uchun alohida footer..."}
+            ),
         }
         labels = {
             "number": "Hujjat raqami",
@@ -186,6 +197,8 @@ class PriceListForm(forms.ModelForm):
             "language": "Hujjat tili",
             "status": "Holati",
             "notes": "Izoh",
+            "document_intro": "Kirish matni",
+            "document_footer": "Hujjat footeri",
         }
 
     def clean(self):
@@ -234,3 +247,31 @@ class PriceListLineForm(forms.ModelForm):
         if price_list and price_list.category:
             products = products.filter(category=price_list.category)
         self.fields["product"].queryset = products
+
+    def clean(self):
+        cleaned_data = super().clean()
+        product = cleaned_data.get("product")
+        if product and not cleaned_data.get("description_snapshot"):
+            cleaned_data["description_snapshot"] = product.description or product.name
+        if product and cleaned_data.get("unit_price") is None:
+            cleaned_data["unit_price"] = product.list_price
+        return cleaned_data
+
+
+PriceListDocumentLineFormSet = inlineformset_factory(
+    PriceList,
+    PriceListLine,
+    form=PriceListLineForm,
+    fields=(
+        "product",
+        "description_snapshot",
+        "available_quantity",
+        "unit",
+        "unit_price",
+        "planned_loading_date",
+        "minimum_order_quantity",
+        "sort_order",
+    ),
+    extra=1,
+    can_delete=True,
+)
