@@ -5,10 +5,26 @@
 <section class="stats">
     <article><span>Ochiq leadlar</span><strong>{{ open_lead_count }}</strong><small>Jami: {{ lead_count }}</small></article>
     <article><span>Mijozlar</span><strong>{{ customer_count }}</strong></article>
-    <article><span>Pipeline qiymati</span><strong>{{ pipeline_value }}</strong><small>UZS</small></article>
+    <article><span>Pipeline qiymati</span>{% for row in pipeline_by_currency %}<strong class="stat-money">{{ row.total|floatformat:"2g" }} <small>{{ row.currency }}</small></strong>{% empty %}<strong class="stat-money">0.00</strong>{% endfor %}</article>
     <article><span>Tijorat takliflari</span><strong>{{ quotation_count }}</strong></article>
-    <article><span>Buyurtmalar</span><strong>{{ order_count }}</strong><small>{{ order_value }} UZS</small></article>
+    <article><span>Buyurtmalar</span><strong>{{ order_count }}</strong>{% for row in orders_by_currency %}<small class="stat-money-line">{{ row.total|floatformat:"2g" }} {{ row.currency }}</small>{% empty %}<small>Summa mavjud emas</small>{% endfor %}</article>
     <article><span>Kechikkan vazifalar</span><strong>{{ overdue_task_count }}</strong></article>
+    <article><span>Kechikkan to'lovlar</span><strong>{{ overdue_payment_count }}</strong><small>ta reja</small></article>
+</section>
+
+<section class="panel report-direction-panel">
+    <div class="panel-heading">
+        <div><p class="eyebrow">Pul oqimi</p><h2>7/30 kunlik tushum prognozi</h2></div>
+        {% if request.crm_permissions.manage_organization %}<a class="button button-secondary" href="{% url 'sales-report' %}">Batafsil hisobot</a>{% endif %}
+    </div>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Valyuta</th><th>Muddati o'tgan</th><th>Keyingi 7 kun</th><th>Keyingi 30 kun</th></tr></thead>
+        <tbody>
+        {% for row in cash_forecast %}
+        <tr><td><strong>{{ row.currency }}</strong></td><td>{{ row.overdue|floatformat:2 }}</td><td>{{ row.next_7_days|floatformat:2 }}</td><td>{{ row.next_30_days|floatformat:2 }}</td></tr>
+        {% empty %}<tr><td colspan="4" class="empty">Keyingi 30 kun uchun to'lov rejasi yo'q.</td></tr>{% endfor %}
+        </tbody>
+    </table></div>
 </section>
 
 <section class="dashboard-grid">

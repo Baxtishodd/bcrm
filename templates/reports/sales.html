@@ -101,4 +101,32 @@
         </table>
     </div>
 </section>
+
+<section class="panel report-direction-panel">
+    <div class="panel-heading"><div><p class="eyebrow">Moliya</p><h2>Reja va haqiqiy tushum</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Valyuta</th><th>Rejalashtirilgan</th><th>Haqiqiy tushum</th><th>Farq</th></tr></thead>
+            <tbody>
+            {% for row in payment_comparison %}
+            <tr><td><strong>{{ row.currency }}</strong></td><td>{{ row.planned|floatformat:2 }}</td><td>{{ row.actual|floatformat:2 }}</td><td>{{ row.difference|floatformat:2 }}</td></tr>
+            {% empty %}<tr><td colspan="4" class="empty">To'lov reja va tushumlari hali kiritilmagan.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel report-direction-panel">
+    <div class="panel-heading"><div><p class="eyebrow">Prognoz</p><h2>Kutilayotgan pul oqimi</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Valyuta</th><th>Muddati o'tgan</th><th>Keyingi 7 kun</th><th>Keyingi 30 kun</th></tr></thead>
+            <tbody>
+            {% for row in cash_forecast %}
+            <tr><td><strong>{{ row.currency }}</strong></td><td>{{ row.overdue|floatformat:2 }}</td><td>{{ row.next_7_days|floatformat:2 }}</td><td>{{ row.next_30_days|floatformat:2 }}</td></tr>
+            {% empty %}<tr><td colspan="4" class="empty">Kutilayotgan to'lovlar yo'q.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endblock %}

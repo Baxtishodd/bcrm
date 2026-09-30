@@ -9,21 +9,89 @@
 <section class="panel detail-card">
     <div class="panel-heading">
         <div><p class="eyebrow">{{ order.get_status_display }}</p><h2>{{ order.customer }}</h2></div>
-        {% if request.crm_permissions.manage_sales %}<a class="button button-secondary" href="{% url 'sales:order-update' order.public_id %}">Holat va to'lovni yangilash</a>{% endif %}
+        {% if request.crm_permissions.manage_sales %}
+        <div class="form-actions">
+            <a class="button button-secondary" href="{% url 'sales:order-update' order.public_id %}">Buyurtmani tahrirlash</a>
+            <a class="button button-secondary" href="{% url 'sales:payment-plan-create' order.public_id %}">+ To'lov rejasi</a>
+            <a class="button" href="{% url 'sales:payment-create' order.public_id %}">+ Tushum</a>
+        </div>
+        {% endif %}
     </div>
     <dl class="details compact-details">
         <div><dt>Buyurtma sanasi</dt><dd>{{ order.order_date|date:"d.m.Y" }}</dd></div>
         <div><dt>Yetkazish sanasi</dt><dd>{{ order.delivery_date|date:"d.m.Y"|default:"—" }}</dd></div>
         <div><dt>Taklif</dt><dd>{% if order.quotation %}<a class="table-link" href="{% url 'sales:detail' order.quotation.public_id %}">{{ order.quotation.number }}</a>{% else %}—{% endif %}</dd></div>
         <div><dt>Mas'ul</dt><dd>{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.email }}{% else %}—{% endif %}</dd></div>
-        <div><dt>Jami</dt><dd>{{ order.total }}{% if order.quotation %} {{ order.quotation.currency }}{% endif %}</dd></div>
-        <div><dt>Avans</dt><dd>{{ order.advance_amount }}</dd></div>
-        <div><dt>To'langan</dt><dd>{{ order.paid_amount }}</dd></div>
-        <div><dt>Qoldiq</dt><dd>{{ order.balance }}</dd></div>
+        <div><dt>Jami</dt><dd>{{ order.total|floatformat:2 }} {{ order.currency }}</dd></div>
+        <div><dt>Avans sharti</dt><dd>{{ order.advance_amount|floatformat:2 }} {{ order.currency }}</dd></div>
+        <div><dt>Rejalashtirilgan</dt><dd>{{ planned_payment_total|floatformat:2 }} {{ order.currency }}</dd></div>
+        <div><dt>Haqiqiy tushum</dt><dd>{{ order.paid_amount|floatformat:2 }} {{ order.currency }}</dd></div>
+        <div><dt>Qoldiq</dt><dd>{{ order.balance|floatformat:2 }} {{ order.currency }}</dd></div>
+        <div><dt>To'lov holati</dt><dd>{{ order.payment_status }}</dd></div>
     </dl>
     <div class="table-wrap"><table>
         <thead><tr><th>Mahsulot</th><th>Miqdor</th><th>Narx</th><th>Jami</th></tr></thead>
-        <tbody>{% for line in order.lines.all %}<tr><td>{{ line.product }}</td><td>{{ line.quantity }} {{ line.product.get_unit_display }}</td><td>{{ line.unit_price }}</td><td>{{ line.line_total }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">Buyurtma qatorlari yo'q.</td></tr>{% endfor %}</tbody>
+        <tbody>{% for line in order.lines.all %}<tr><td>{{ line.product }}</td><td>{{ line.quantity }} {{ line.product.get_unit_display }}</td><td>{{ line.unit_price|floatformat:2 }}</td><td>{{ line.line_total|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">Buyurtma qatorlari yo'q.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</section>
+
+<section class="report-grid order-payment-grid">
+    <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">Reja</p><h2>To'lov jadvali</h2></div></div>
+        <div class="table-wrap"><table>
+            <thead><tr><th>Sana</th><th>Reja</th><th>Tushgan</th><th>Qoldiq</th><th>Holat</th><th>Izoh</th>{% if request.crm_permissions.manage_sales %}<th>Amallar</th>{% endif %}</tr></thead>
+            <tbody>
+            {% for plan in order.payment_plans.all %}
+            <tr>
+                <td>{{ plan.due_date|date:"d.m.Y" }}</td>
+                <td>{{ plan.amount|floatformat:2 }} {{ order.currency }}</td>
+                <td>{{ plan.received_amount|floatformat:2 }} {{ order.currency }}</td>
+                <td>{{ plan.balance|floatformat:2 }} {{ order.currency }}</td>
+                <td><span class="badge{% if plan.is_cancelled %} badge-danger{% endif %}">{{ plan.payment_status }}</span></td>
+                <td>{{ plan.notes|default:"—" }}{% if plan.is_cancelled %}<br><small>{{ plan.cancellation_reason }}</small>{% endif %}</td>
+                {% if request.crm_permissions.manage_sales %}<td class="table-actions">
+                    {% if not plan.is_cancelled %}
+                    <a class="table-link" href="{% url 'sales:payment-plan-update' plan.public_id %}">Tahrirlash</a>
+                    <form method="post" action="{% url 'sales:payment-plan-cancel' plan.public_id %}" class="inline-cancel-form">{% csrf_token %}<input name="reason" required maxlength="255" placeholder="Bekor qilish sababi"><button type="submit" class="link-button link-danger">Bekor qilish</button></form>
+                    {% endif %}
+                </td>{% endif %}
+            </tr>
+            {% empty %}<tr><td colspan="7" class="empty">To'lov rejasi kiritilmagan.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">Amal</p><h2>Haqiqiy tushumlar</h2></div></div>
+        <div class="table-wrap"><table>
+            <thead><tr><th>Sana</th><th>Summa</th><th>Usul</th><th>Hujjat</th><th>Reja</th><th>Holat</th>{% if request.crm_permissions.manage_sales %}<th>Amallar</th>{% endif %}</tr></thead>
+            <tbody>
+            {% for payment in order.payments.all %}
+            <tr>
+                <td>{{ payment.received_on|date:"d.m.Y" }}</td>
+                <td><strong>{{ payment.amount|floatformat:2 }} {{ order.currency }}</strong></td>
+                <td>{{ payment.get_method_display }}</td>
+                <td>{{ payment.reference|default:"—" }}</td>
+                <td>{% if payment.plan %}{{ payment.plan.due_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                <td>{% if payment.is_cancelled %}<span class="badge badge-danger">Bekor qilingan</span><br><small>{{ payment.cancellation_reason }}</small>{% else %}<span class="badge badge-success">Qabul qilingan</span>{% endif %}</td>
+                {% if request.crm_permissions.manage_sales %}<td class="table-actions">
+                    {% if not payment.is_cancelled %}
+                    <a class="table-link" href="{% url 'sales:payment-update' payment.public_id %}">Tahrirlash</a>
+                    <form method="post" action="{% url 'sales:payment-cancel' payment.public_id %}" class="inline-cancel-form">{% csrf_token %}<input name="reason" required maxlength="255" placeholder="Bekor qilish sababi"><button type="submit" class="link-button link-danger">Bekor qilish</button></form>
+                    {% endif %}
+                </td>{% endif %}
+            </tr>
+            {% empty %}<tr><td colspan="7" class="empty">Haqiqiy tushum qayd qilinmagan.</td></tr>{% endfor %}
+            </tbody>
+        </table></div>
+    </article>
+</section>
+
+<section class="panel">
+    <div class="panel-heading"><div><p class="eyebrow">Nazorat</p><h2>Moliyaviy o'zgarishlar tarixi</h2></div></div>
+    <div class="table-wrap"><table>
+        <thead><tr><th>Vaqt</th><th>Foydalanuvchi</th><th>Amal</th><th>Obyekt</th><th>O'zgarish</th></tr></thead>
+        <tbody>{% for log in finance_audit %}<tr><td>{{ log.created_at|date:"d.m.Y H:i" }}</td><td>{% if log.actor %}{{ log.actor.get_full_name|default:log.actor.email }}{% else %}Tizim{% endif %}</td><td>{{ log.action }}</td><td>{{ log.object_type }}</td><td><small>{{ log.changes }}</small></td></tr>{% empty %}<tr><td colspan="5" class="empty">O'zgarishlar tarixi hali yo'q.</td></tr>{% endfor %}</tbody>
     </table></div>
 </section>
 {% endblock %}

@@ -1,11 +1,14 @@
 import smtplib
 import socket
+from decimal import Decimal
 from email.utils import formataddr
 
 from django.core.mail import EmailMessage, get_connection
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
+from apps.common.models import AuditLog
 from apps.crm.models import Activity, Lead, PipelineStage
 
 from .models import (
@@ -204,3 +207,23 @@ def convert_quotation_to_order(quotation, actor):
         lead.full_clean()
         lead.save(update_fields=["status", "stage", "lost_reason", "updated_at"])
     return order, True
+
+
+def sync_order_paid_amount(order):
+    total = order.payments.filter(is_cancelled=False).aggregate(total=Sum("amount"))[
+        "total"
+    ] or Decimal("0")
+    SalesOrder.objects.filter(pk=order.pk).update(paid_amount=total)
+    order.paid_amount = total
+    return total
+
+
+def record_finance_audit(*, actor, instance, action, changes=None):
+    return AuditLog.objects.create(
+        organization=instance.organization,
+        actor=actor,
+        action=action,
+        object_type=instance._meta.label,
+        object_public_id=instance.public_id,
+        changes=changes or {},
+    )

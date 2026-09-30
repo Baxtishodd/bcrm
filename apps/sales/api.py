@@ -32,7 +32,7 @@ class QuotationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quotation
         exclude = ("organization",)
-        read_only_fields = ("created_by",)
+        read_only_fields = ("created_by", "paid_amount")
         extra_kwargs = {"number": {"required": False}}
 
     def validate(self, attrs):

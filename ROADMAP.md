@@ -96,7 +96,7 @@ aloqa tarixini ko'radi va keyingi bog'lanish vazifasini unutmaydi.
 
 - [x] Savdo voronkasi konversiyasi va yutqazish sabablarini ko'rsatish.
 - [x] Menejer, yo'nalish va davr bo'yicha filtrlash qo'shish.
-- [ ] Rejadagi va haqiqiy tushum uchun ma'lumot modelini aniqlash.
+- [x] Rejadagi va haqiqiy tushum uchun ma'lumot modelini aniqlash.
 
 **Tayyorlik mezoni:** rahbar joriy savdo voronkasi, yutuq va yo'qotishlarni
 bitta sahifada ko'ra oladi.
@@ -141,7 +141,11 @@ lavozimiga ruxsat berilgan amallarni bajaradi va bloklanganda tizimdan chiqadi.
 
 - [x] Savdo voronkasi konversiyasi va yo'qotish sabablarini ko'rsatish.
 - [x] Menejer, yo'nalish va davr bo'yicha savdo hisobotlarini yaratish.
-- [ ] Rejadagi va haqiqiy tushumni taqqoslash.
+- [x] Rejadagi va haqiqiy tushumni taqqoslash.
+- [x] To'lov rejalari va tushumlarni tahrirlash hamda sabab bilan bekor qilish.
+- [x] Moliyaviy o'zgarishlar tarixini saqlash va kechikkan to'lovlarni ko'rsatish.
+- [ ] 7/30 kunlik pul oqimi prognozi va to'lov filtrlarini qo'shish.
+- [ ] Moliyaviy hisobotlarni Excel va PDF formatida eksport qilish.
 - [x] Rollar va amallar bo'yicha batafsil ruxsat tizimini qo'shish.
 
 ## Ishlash tartibi

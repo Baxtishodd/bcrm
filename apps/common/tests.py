@@ -1,10 +1,15 @@
+from datetime import date, timedelta
+from decimal import Decimal
+
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.crm.models import Activity, Lead
 from apps.customers.models import CustomerCompany
 from apps.organizations.models import Membership, Organization
+from apps.sales.models import Payment, PaymentPlan, Quotation, SalesOrder
 
 
 class CrossModulePermissionTests(TestCase):
@@ -210,8 +215,9 @@ class SalesReportTests(TestCase):
                 "Narx mos kelmadi",
             ),
         )
+        self.leads = []
         for title, status, direction, currency, value, lost_reason in lead_rows:
-            Lead.objects.create(
+            self.leads.append(Lead.objects.create(
                 organization=self.organization,
                 customer=self.customer,
                 title=title,
@@ -221,7 +227,37 @@ class SalesReportTests(TestCase):
                 estimated_value=value,
                 lost_reason=lost_reason,
                 assigned_to=self.salesperson,
-            )
+            ))
+        quotation = Quotation.objects.create(
+            organization=self.organization,
+            number="QT-REPORT-1",
+            customer=self.customer,
+            lead=self.leads[2],
+            currency="USD",
+            created_by=self.salesperson,
+        )
+        order = SalesOrder.objects.create(
+            organization=self.organization,
+            number="SO-REPORT-1",
+            customer=self.customer,
+            quotation=quotation,
+            order_date=date(2026, 9, 30),
+            created_by=self.salesperson,
+        )
+        plan = PaymentPlan.objects.create(
+            organization=self.organization,
+            order=order,
+            due_date=timezone.localdate() + timedelta(days=15),
+            amount=Decimal("2000"),
+        )
+        Payment.objects.create(
+            organization=self.organization,
+            order=order,
+            plan=plan,
+            received_on=timezone.localdate() + timedelta(days=10),
+            amount=Decimal("750"),
+            created_by=self.salesperson,
+        )
         self.client.force_login(self.owner)
 
     def test_report_calculates_funnel_conversion_and_currency_totals(self):
@@ -242,6 +278,55 @@ class SalesReportTests(TestCase):
         }
         self.assertEqual(pipeline["USD"], 1000)
         self.assertEqual(pipeline["UZS"], 2000000)
+        self.assertEqual(
+            response.context["payment_comparison"],
+            [
+                {
+                    "currency": "USD",
+                    "planned": Decimal("2000"),
+                    "actual": Decimal("750"),
+                    "difference": Decimal("-1250"),
+                }
+            ],
+        )
+        self.assertEqual(
+            response.context["cash_forecast"],
+            [
+                {
+                    "currency": "USD",
+                    "overdue": Decimal("0"),
+                    "next_7_days": Decimal("0"),
+                    "next_30_days": Decimal("1250"),
+                }
+            ],
+        )
+
+    def test_dashboard_shows_currency_cashflow_forecast(self):
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "7/30 kunlik tushum prognozi")
+        self.assertContains(response, "1000,00")
+        self.assertContains(response, "2000000,00")
+        self.assertEqual(
+            response.context["pipeline_by_currency"],
+            [
+                {"currency": "USD", "total": Decimal("1000")},
+                {"currency": "UZS", "total": Decimal("2000000")},
+            ],
+        )
+        self.assertEqual(response.context["orders_by_currency"], [])
+        self.assertEqual(
+            response.context["cash_forecast"],
+            [
+                {
+                    "currency": "USD",
+                    "overdue": Decimal("0"),
+                    "next_7_days": Decimal("0"),
+                    "next_30_days": Decimal("1250"),
+                }
+            ],
+        )
 
     def test_report_filters_by_manager_and_business_direction(self):
         response = self.client.get(

@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     OrderLine,
     OrderLineVariant,
+    Payment,
+    PaymentPlan,
     Quotation,
     QuotationDelivery,
     QuotationLine,
@@ -40,3 +42,5 @@ class QuotationAdmin(admin.ModelAdmin):
 admin.site.register(SalesOrder)
 admin.site.register(OrderLine)
 admin.site.register(OrderLineVariant)
+admin.site.register(PaymentPlan)
+admin.site.register(Payment)

@@ -11,13 +11,21 @@ from pypdf import PdfReader
 
 from apps.accounts.models import MailboxAccount, User
 from apps.catalog.models import Color, Product, ProductVariant, Size
+from apps.common.models import AuditLog
 from apps.crm.models import Activity, Lead, PipelineStage
 from apps.customers.models import Contact, CustomerCompany
 from apps.organizations.models import Membership, Organization
 
-from .forms import QuotationForm, QuotationLineForm, SalesOrderForm
+from .forms import (
+    PaymentPlanForm,
+    QuotationForm,
+    QuotationLineForm,
+    SalesOrderForm,
+)
 from .models import (
     OrderLineVariant,
+    Payment,
+    PaymentPlan,
     Quotation,
     QuotationDelivery,
     QuotationLine,
@@ -125,6 +133,155 @@ class QuotationConversionTests(TestCase):
         self.assertEqual(order.lines.get().quantity, Decimal("100"))
         self.assertEqual(order.total, Decimal("2016000"))
         self.assertEqual(self.quotation.status, Quotation.Status.ACCEPTED)
+
+    def test_payment_plan_and_actual_payment_update_order_balance(self):
+        order, _created = convert_quotation_to_order(self.quotation, self.user)
+
+        plan_response = self.client.post(
+            reverse("sales:payment-plan-create", args=[order.public_id]),
+            {
+                "due_date": "2026-10-15",
+                "amount": "1000000",
+                "notes": "Birinchi to'lov",
+            },
+        )
+        self.assertRedirects(
+            plan_response,
+            reverse("sales:order-detail", args=[order.public_id]),
+        )
+        plan = PaymentPlan.objects.get(order=order)
+
+        payment_response = self.client.post(
+            reverse("sales:payment-create", args=[order.public_id]),
+            {
+                "plan": plan.pk,
+                "received_on": "2026-10-10",
+                "amount": "400000",
+                "method": Payment.Method.BANK,
+                "reference": "PAY-001",
+                "notes": "Qisman tushum",
+            },
+        )
+
+        self.assertRedirects(
+            payment_response,
+            reverse("sales:order-detail", args=[order.public_id]),
+        )
+        order.refresh_from_db()
+        plan.refresh_from_db()
+        payment = Payment.objects.get(order=order)
+        self.assertEqual(payment.organization, self.organization)
+        self.assertEqual(payment.created_by, self.user)
+        self.assertEqual(order.paid_amount, Decimal("400000"))
+        self.assertEqual(order.balance, Decimal("1616000"))
+        self.assertEqual(plan.received_amount, Decimal("400000"))
+        self.assertEqual(plan.balance, Decimal("600000"))
+        self.assertEqual(plan.payment_status, "Qisman to'langan")
+
+        detail_response = self.client.get(
+            reverse("sales:order-detail", args=[order.public_id])
+        )
+        self.assertContains(detail_response, "PAY-001")
+        self.assertContains(detail_response, "1000000,00")
+
+        payment.delete()
+        order.refresh_from_db()
+        self.assertEqual(order.paid_amount, Decimal("0"))
+
+    def test_payment_can_be_edited_and_cancelled_with_audit_history(self):
+        order, _created = convert_quotation_to_order(self.quotation, self.user)
+        plan = PaymentPlan.objects.create(
+            organization=self.organization,
+            order=order,
+            due_date="2026-10-15",
+            amount=Decimal("1000000"),
+        )
+        payment = Payment.objects.create(
+            organization=self.organization,
+            order=order,
+            plan=plan,
+            received_on="2026-10-10",
+            amount=Decimal("400000"),
+            created_by=self.user,
+        )
+
+        update_response = self.client.post(
+            reverse("sales:payment-update", args=[payment.public_id]),
+            {
+                "plan": plan.pk,
+                "received_on": "2026-10-11",
+                "amount": "450000",
+                "method": Payment.Method.CASH,
+                "reference": "CASH-01",
+                "notes": "Yangilandi",
+            },
+        )
+        self.assertRedirects(
+            update_response,
+            reverse("sales:order-detail", args=[order.public_id]),
+        )
+        order.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertEqual(order.paid_amount, Decimal("450000"))
+        self.assertEqual(payment.reference, "CASH-01")
+
+        blocked_plan_cancel = self.client.post(
+            reverse("sales:payment-plan-cancel", args=[plan.public_id]),
+            {"reason": "Reja o'zgardi"},
+        )
+        self.assertRedirects(
+            blocked_plan_cancel,
+            reverse("sales:order-detail", args=[order.public_id]),
+        )
+        plan.refresh_from_db()
+        self.assertFalse(plan.is_cancelled)
+
+        cancel_response = self.client.post(
+            reverse("sales:payment-cancel", args=[payment.public_id]),
+            {"reason": "Noto'g'ri kiritilgan"},
+        )
+        self.assertRedirects(
+            cancel_response,
+            reverse("sales:order-detail", args=[order.public_id]),
+        )
+        order.refresh_from_db()
+        payment.refresh_from_db()
+        self.assertTrue(payment.is_cancelled)
+        self.assertEqual(payment.cancelled_by, self.user)
+        self.assertEqual(order.paid_amount, Decimal("0"))
+        self.assertTrue(
+            AuditLog.objects.filter(
+                object_public_id=payment.public_id,
+                action="cancelled",
+                actor=self.user,
+            ).exists()
+        )
+
+    def test_payment_plan_amount_cannot_be_less_than_received_amount(self):
+        order, _created = convert_quotation_to_order(self.quotation, self.user)
+        plan = PaymentPlan.objects.create(
+            organization=self.organization,
+            order=order,
+            due_date="2026-10-15",
+            amount=Decimal("1000000"),
+        )
+        Payment.objects.create(
+            organization=self.organization,
+            order=order,
+            plan=plan,
+            amount=Decimal("400000"),
+            created_by=self.user,
+        )
+
+        response = self.client.post(
+            reverse("sales:payment-plan-update", args=[plan.public_id]),
+            {"due_date": "2026-10-15", "amount": "300000", "notes": ""},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "bog&#x27;langan tushumlar summasidan kam")
+        plan.refresh_from_db()
+        self.assertEqual(plan.amount, Decimal("1000000"))
 
     def test_delivery_log_records_channel_and_marks_draft_as_sent(self):
         response = self.client.post(
@@ -491,7 +648,6 @@ class LeadQuotationWorkflowTests(TestCase):
                 "order_date": "2026-09-30",
                 "delivery_date": "",
                 "advance_amount": "-1",
-                "paid_amount": "-2",
                 "assigned_to": self.user.pk,
                 "notes": "",
             },
@@ -506,7 +662,13 @@ class LeadQuotationWorkflowTests(TestCase):
         self.assertIn("unit_price", line_form.errors)
         self.assertFalse(order_form.is_valid())
         self.assertIn("advance_amount", order_form.errors)
-        self.assertIn("paid_amount", order_form.errors)
+        self.assertNotIn("paid_amount", order_form.fields)
+
+        payment_plan_form = PaymentPlanForm(
+            data={"due_date": "2026-09-30", "amount": "0", "notes": ""}
+        )
+        self.assertFalse(payment_plan_form.is_valid())
+        self.assertIn("amount", payment_plan_form.errors)
 
     def test_won_lead_shows_order_action_then_link(self):
         self.create_quotation_from_lead()
@@ -696,6 +858,18 @@ class LeadQuotationWorkflowTests(TestCase):
         self.assertEqual(
             self.client.get(
                 reverse("sales:order-update", args=[hidden_order.public_id])
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("sales:payment-plan-create", args=[hidden_order.public_id])
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("sales:payment-create", args=[hidden_order.public_id])
             ).status_code,
             404,
         )

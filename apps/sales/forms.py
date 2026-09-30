@@ -1,4 +1,5 @@
 from django import forms
+from django.db import models
 from django.forms import inlineformset_factory
 
 from apps.accounts.models import MailboxAccount, User
@@ -7,7 +8,14 @@ from apps.common.widgets import DependentContactSelect, SearchableSelect
 from apps.crm.models import Lead
 from apps.customers.models import Contact, CustomerCompany
 
-from .models import Quotation, QuotationDelivery, QuotationLine, SalesOrder
+from .models import (
+    Payment,
+    PaymentPlan,
+    Quotation,
+    QuotationDelivery,
+    QuotationLine,
+    SalesOrder,
+)
 
 
 class QuotationForm(forms.ModelForm):
@@ -248,7 +256,6 @@ class SalesOrderForm(forms.ModelForm):
             "order_date",
             "delivery_date",
             "advance_amount",
-            "paid_amount",
             "assigned_to",
             "notes",
         )
@@ -265,7 +272,6 @@ class SalesOrderForm(forms.ModelForm):
             "order_date": "Buyurtma sanasi",
             "delivery_date": "Yetkazish sanasi",
             "advance_amount": "Avans",
-            "paid_amount": "Jami to'langan",
             "assigned_to": "Mas'ul xodim",
             "notes": "Izoh",
         }
@@ -297,3 +303,64 @@ class SalesOrderForm(forms.ModelForm):
         if quotation and customer and quotation.customer_id != customer.id:
             self.add_error("quotation", "Taklif tanlangan mijozga tegishli emas.")
         return cleaned_data
+
+
+class PaymentPlanForm(forms.ModelForm):
+    class Meta:
+        model = PaymentPlan
+        fields = ("due_date", "amount", "notes")
+        widgets = {"due_date": forms.DateInput(attrs={"type": "date"})}
+        labels = {
+            "due_date": "Rejalashtirilgan sana",
+            "amount": "Rejalashtirilgan summa",
+            "notes": "Izoh",
+        }
+
+    def clean_amount(self):
+        amount = self.cleaned_data["amount"]
+        if self.instance.pk and amount < self.instance.received_amount:
+            raise forms.ValidationError(
+                "Reja summasi unga bog'langan tushumlar summasidan kam bo'lishi mumkin emas."
+            )
+        return amount
+
+
+class PaymentForm(forms.ModelForm):
+    class Meta:
+        model = Payment
+        fields = ("plan", "received_on", "amount", "method", "reference", "notes")
+        widgets = {"received_on": forms.DateInput(attrs={"type": "date"})}
+        labels = {
+            "plan": "To'lov rejasi",
+            "received_on": "Tushum sanasi",
+            "amount": "Tushgan summa",
+            "method": "To'lov usuli",
+            "reference": "To'lov hujjati raqami",
+            "notes": "Izoh",
+        }
+
+    def __init__(self, *args, order, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order = order
+        available_plans = order.payment_plans.filter(is_cancelled=False)
+        if self.instance.pk and self.instance.plan_id:
+            available_plans = order.payment_plans.filter(
+                models.Q(is_cancelled=False) | models.Q(pk=self.instance.plan_id)
+            )
+        self.fields["plan"].queryset = available_plans
+        self.fields["plan"].required = False
+        self.fields["plan"].empty_label = "Rejaga bog'lanmagan tushum"
+
+    def clean_plan(self):
+        plan = self.cleaned_data.get("plan")
+        if plan and plan.order_id != self.order.id:
+            raise forms.ValidationError("Reja ushbu buyurtmaga tegishli emas.")
+        return plan
+
+
+class PaymentCancellationForm(forms.Form):
+    reason = forms.CharField(
+        label="Bekor qilish sababi",
+        max_length=255,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )

@@ -24,6 +24,7 @@ a{color:inherit;text-decoration:none}
 .stats span{display:block;color:var(--muted);font-size:13px}
 .stats strong{display:block;font-size:32px;margin-top:7px}
 .stats small{display:block;color:var(--muted);margin-top:5px}
+.stats .stat-money{font-size:22px}.stats .stat-money small{display:inline;font-size:12px}.stats .stat-money-line{font-weight:700;color:#475569}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:15px;overflow:hidden}
 .panel-heading{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid var(--line)}
 .panel-heading h2{font-size:18px;margin:4px 0 0}
@@ -68,6 +69,7 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07
 .form-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
 .form-actions .button[type=submit]{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:118px}
 .form-actions .button[type=submit]:disabled{cursor:wait;opacity:.72}
+.table-actions{min-width:210px}.inline-cancel-form{display:flex;gap:6px;align-items:center;margin-top:7px}.inline-cancel-form input{min-width:130px;padding:7px 9px}.link-button{border:0;background:none;padding:0;color:var(--brand);cursor:pointer;font:inherit}.link-danger{color:#be123c}
 .button-spinner{display:none;width:14px;height:14px;border:2px solid #ffffff80;border-top-color:#fff;border-radius:50%;animation:button-spin .7s linear infinite}
 form.is-submitting .button-spinner{display:inline-block}
 .form-submit-status{margin:10px 0 0;text-align:right;color:var(--muted);font-size:12px}
@@ -158,6 +160,7 @@ tfoot th{background:#f8fafc}
 .currency-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding:22px}.currency-columns>div{padding:16px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}.currency-columns h3{margin:0 0 14px;font-size:15px}.currency-columns p{margin:10px 0}.currency-columns small{display:block;color:var(--muted);margin-top:3px}
 .reason-list{display:grid;padding:10px 22px 22px}.reason-list div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}.reason-list div:last-child{border-bottom:0}.reason-list strong{display:grid;place-items:center;min-width:30px;height:30px;border-radius:999px;background:#fee2e2;color:#b91c1c}
 .report-direction-panel{margin-bottom:18px}
+.order-payment-grid{margin-top:18px}.order-payment-grid .panel{min-width:0}
 .quotation-history{margin-top:18px}
 .settings-form{display:grid;gap:18px}
 .settings-section{overflow:visible}

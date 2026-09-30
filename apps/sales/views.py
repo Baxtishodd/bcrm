@@ -10,11 +10,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.accounts.models import MailboxAccount
+from apps.common.models import AuditLog
 from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
 from apps.crm.models import Lead
 
 from .forms import (
+    PaymentCancellationForm,
+    PaymentForm,
+    PaymentPlanForm,
     QuotationDeliveryForm,
     QuotationDocumentForm,
     QuotationDocumentLineFormSet,
@@ -23,13 +27,15 @@ from .forms import (
     QuotationLineForm,
     SalesOrderForm,
 )
-from .models import Quotation, QuotationDelivery, SalesOrder
+from .models import Payment, PaymentPlan, Quotation, QuotationDelivery, SalesOrder
 from .pdf import build_quotation_pdf, quotation_pdf_filename
 from .services import (
     QuotationEmailError,
     convert_quotation_to_order,
     next_document_number,
+    record_finance_audit,
     send_quotation_email,
+    sync_order_paid_amount,
 )
 
 
@@ -501,14 +507,32 @@ def order_detail(request, public_id):
             "quotation",
             "assigned_to",
             "created_by",
-        ).prefetch_related("lines__product"),
+        ).prefetch_related(
+            "lines__product",
+            "payment_plans__payments",
+            "payments__plan",
+        ),
         public_id=public_id,
         organization=request.organization,
     )
+    finance_public_ids = [plan.public_id for plan in order.payment_plans.all()]
+    finance_public_ids.extend(payment.public_id for payment in order.payments.all())
+    finance_audit = AuditLog.objects.filter(
+        organization=request.organization,
+        object_public_id__in=finance_public_ids,
+    ).select_related("actor")[:20]
     return render(
         request,
         "sales/order_detail.html",
-        {"order": order, "organization": request.organization},
+        {
+            "order": order,
+            "organization": request.organization,
+            "planned_payment_total": sum(
+                (plan.amount for plan in order.payment_plans.all() if not plan.is_cancelled),
+                0,
+            ),
+            "finance_audit": finance_audit,
+        },
     )
 
 
@@ -546,3 +570,253 @@ def order_update(request, public_id):
             "organization": request.organization,
         },
     )
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+def payment_plan_create(request, public_id):
+    order = get_object_or_404(
+        SalesOrder,
+        public_id=public_id,
+        organization=request.organization,
+    )
+    form = PaymentPlanForm(request.POST or None)
+    if form.is_valid():
+        plan = form.save(commit=False)
+        plan.organization = request.organization
+        plan.order = order
+        plan.full_clean()
+        plan.save()
+        record_finance_audit(
+            actor=request.user,
+            instance=plan,
+            action="created",
+            changes={"amount": str(plan.amount), "due_date": str(plan.due_date)},
+        )
+        messages.success(request, "To'lov rejasi qo'shildi.")
+        return redirect("sales:order-detail", public_id=order.public_id)
+    return render(
+        request,
+        "shared/form.html",
+        {
+            "form": form,
+            "page_title": f"{order.number} — to'lov rejasi",
+            "submit_label": "Rejani qo'shish",
+            "cancel_url": f"/sales/orders/{order.public_id}/",
+            "organization": request.organization,
+        },
+    )
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+def payment_create(request, public_id):
+    order = get_object_or_404(
+        SalesOrder.objects.prefetch_related("payment_plans"),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    form = PaymentForm(request.POST or None, order=order)
+    if form.is_valid():
+        with transaction.atomic():
+            payment = form.save(commit=False)
+            payment.organization = request.organization
+            payment.order = order
+            payment.created_by = request.user
+            payment.full_clean()
+            payment.save()
+            sync_order_paid_amount(order)
+            record_finance_audit(
+                actor=request.user,
+                instance=payment,
+                action="created",
+                changes={
+                    "amount": str(payment.amount),
+                    "received_on": str(payment.received_on),
+                },
+            )
+        messages.success(request, "Haqiqiy tushum qayd qilindi.")
+        return redirect("sales:order-detail", public_id=order.public_id)
+    return render(
+        request,
+        "shared/form.html",
+        {
+            "form": form,
+            "page_title": f"{order.number} — tushum qo'shish",
+            "submit_label": "Tushumni saqlash",
+            "cancel_url": f"/sales/orders/{order.public_id}/",
+            "organization": request.organization,
+        },
+    )
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+def payment_plan_update(request, public_id):
+    plan = get_object_or_404(
+        PaymentPlan.objects.select_related("order"),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    if plan.is_cancelled:
+        messages.error(request, "Bekor qilingan to'lov rejasini tahrirlab bo'lmaydi.")
+        return redirect("sales:order-detail", public_id=plan.order.public_id)
+    old_values = {"amount": str(plan.amount), "due_date": str(plan.due_date)}
+    form = PaymentPlanForm(request.POST or None, instance=plan)
+    if form.is_valid():
+        updated_plan = form.save(commit=False)
+        updated_plan.full_clean()
+        updated_plan.save()
+        record_finance_audit(
+            actor=request.user,
+            instance=updated_plan,
+            action="updated",
+            changes={
+                "before": old_values,
+                "after": {
+                    "amount": str(updated_plan.amount),
+                    "due_date": str(updated_plan.due_date),
+                },
+            },
+        )
+        messages.success(request, "To'lov rejasi yangilandi.")
+        return redirect("sales:order-detail", public_id=plan.order.public_id)
+    return render(
+        request,
+        "shared/form.html",
+        {
+            "form": form,
+            "page_title": f"{plan.order.number} — to'lov rejasini tahrirlash",
+            "submit_label": "O'zgarishlarni saqlash",
+            "cancel_url": f"/sales/orders/{plan.order.public_id}/",
+            "organization": request.organization,
+        },
+    )
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+def payment_update(request, public_id):
+    payment = get_object_or_404(
+        Payment.objects.select_related("order").prefetch_related(
+            "order__payment_plans"
+        ),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    if payment.is_cancelled:
+        messages.error(request, "Bekor qilingan tushumni tahrirlab bo'lmaydi.")
+        return redirect("sales:order-detail", public_id=payment.order.public_id)
+    old_values = {
+        "amount": str(payment.amount),
+        "received_on": str(payment.received_on),
+    }
+    form = PaymentForm(request.POST or None, instance=payment, order=payment.order)
+    if form.is_valid():
+        with transaction.atomic():
+            updated_payment = form.save(commit=False)
+            updated_payment.full_clean()
+            updated_payment.save()
+            sync_order_paid_amount(payment.order)
+            record_finance_audit(
+                actor=request.user,
+                instance=updated_payment,
+                action="updated",
+                changes={
+                    "before": old_values,
+                    "after": {
+                        "amount": str(updated_payment.amount),
+                        "received_on": str(updated_payment.received_on),
+                    },
+                },
+            )
+        messages.success(request, "Tushum yangilandi.")
+        return redirect("sales:order-detail", public_id=payment.order.public_id)
+    return render(
+        request,
+        "shared/form.html",
+        {
+            "form": form,
+            "page_title": f"{payment.order.number} — tushumni tahrirlash",
+            "submit_label": "O'zgarishlarni saqlash",
+            "cancel_url": f"/sales/orders/{payment.order.public_id}/",
+            "organization": request.organization,
+        },
+    )
+
+
+def _cancel_finance_record(request, instance, success_message):
+    form = PaymentCancellationForm(request.POST or None)
+    if form.is_valid():
+        instance.is_cancelled = True
+        instance.cancelled_at = timezone.now()
+        instance.cancelled_by = request.user
+        instance.cancellation_reason = form.cleaned_data["reason"]
+        instance.save(
+            update_fields=[
+                "is_cancelled",
+                "cancelled_at",
+                "cancelled_by",
+                "cancellation_reason",
+                "updated_at",
+            ]
+        )
+        record_finance_audit(
+            actor=request.user,
+            instance=instance,
+            action="cancelled",
+            changes={"reason": instance.cancellation_reason},
+        )
+        messages.success(request, success_message)
+        return None
+    return form
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+def payment_plan_cancel(request, public_id):
+    plan = get_object_or_404(
+        PaymentPlan.objects.select_related("order"),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not plan.is_cancelled:
+        if plan.payments.filter(is_cancelled=False).exists():
+            messages.error(
+                request,
+                "Rejaga tushum bog'langan. Avval tushumni bekor qiling "
+                "yoki boshqa rejaga o'tkazing.",
+            )
+            return redirect("sales:order-detail", public_id=plan.order.public_id)
+        form = _cancel_finance_record(request, plan, "To'lov rejasi bekor qilindi.")
+        if form is not None:
+            messages.error(request, "Bekor qilish sababini kiriting.")
+    return redirect("sales:order-detail", public_id=plan.order.public_id)
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+def payment_cancel(request, public_id):
+    payment = get_object_or_404(
+        Payment.objects.select_related("order"),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not payment.is_cancelled:
+        with transaction.atomic():
+            form = _cancel_finance_record(request, payment, "Tushum bekor qilindi.")
+            if form is not None:
+                messages.error(request, "Bekor qilish sababini kiriting.")
+            else:
+                sync_order_paid_amount(payment.order)
+    return redirect("sales:order-detail", public_id=payment.order.public_id)
