@@ -5,6 +5,8 @@ from django.shortcuts import redirect
 
 from apps.organizations.models import Membership
 
+from .permissions import permissions_for_membership
+
 
 def get_membership(user):
     if not user.is_authenticated:
@@ -25,7 +27,10 @@ def organization_required(view_func):
             return redirect("dashboard")
         request.membership = membership
         request.organization = membership.organization
+        request.crm_permissions = permissions_for_membership(
+            membership,
+            is_superuser=request.user.is_superuser,
+        )
         return view_func(request, *args, **kwargs)
 
     return wrapped
-

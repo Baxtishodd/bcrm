@@ -1,5 +1,7 @@
 from rest_framework import serializers, viewsets
 
+from apps.common.api_permissions import OrganizationWritePermission
+from apps.common.permissions import OrganizationPermission
 from apps.organizations.models import Membership
 
 from .models import Contact, CustomerCompany
@@ -43,6 +45,8 @@ class CustomerCompanySerializer(serializers.ModelSerializer):
 
 class CustomerCompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerCompanySerializer
+    permission_classes = (OrganizationWritePermission,)
+    required_write_permission = OrganizationPermission.MANAGE_CUSTOMERS
     filterset_fields = (
         "relationship_status",
         "business_direction",

@@ -1,5 +1,7 @@
 from rest_framework import serializers, viewsets
 
+from apps.common.api_permissions import OrganizationWritePermission
+from apps.common.permissions import OrganizationPermission
 from apps.customers.api import current_organization
 
 from .models import Quotation, QuotationLine, SalesOrder
@@ -63,6 +65,8 @@ class QuotationSerializer(serializers.ModelSerializer):
 
 class QuotationViewSet(viewsets.ModelViewSet):
     serializer_class = QuotationSerializer
+    permission_classes = (OrganizationWritePermission,)
+    required_write_permission = OrganizationPermission.MANAGE_SALES
     filterset_fields = ("status", "customer", "currency")
 
     def get_queryset(self):
@@ -123,6 +127,8 @@ class SalesOrderSerializer(serializers.ModelSerializer):
 
 class SalesOrderViewSet(viewsets.ModelViewSet):
     serializer_class = SalesOrderSerializer
+    permission_classes = (OrganizationWritePermission,)
+    required_write_permission = OrganizationPermission.MANAGE_SALES
     filterset_fields = ("status", "customer", "assigned_to")
 
     def get_queryset(self):

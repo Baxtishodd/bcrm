@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}BCRM{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260930-2">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260930-3">
 </head>
 <body>
 <div class="app-shell">
@@ -34,11 +34,19 @@
                href="{% url 'catalog:list' %}">Mahsulotlar</a>
             <a{% if request.resolver_match.namespace == 'sales' %} class="active" aria-current="page"{% endif %}
                href="{% url 'sales:list' %}">Savdo</a>
+            {% if request.crm_permissions.manage_organization %}
+            <a{% if request.resolver_match.url_name == 'sales-report' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'sales-report' %}">Hisobotlar</a>
+            {% endif %}
+            {% if request.crm_permissions.manage_mailbox %}
             <a{% if request.resolver_match.namespace == 'accounts' %} class="active" aria-current="page"{% endif %}
                href="{% url 'accounts:mailbox-list' %}">Email sozlamalari</a>
-            {% if organization and request.membership.role == 'owner' or organization and request.membership.role == 'director' or user.is_superuser %}
-            <a{% if request.resolver_match.namespace == 'organizations' %} class="active" aria-current="page"{% endif %}
+            {% endif %}
+            {% if request.crm_permissions.manage_organization %}
+            <a{% if request.resolver_match.url_name == 'settings' %} class="active" aria-current="page"{% endif %}
                href="{% url 'organizations:settings' %}">Tashkilot sozlamalari</a>
+            <a{% if request.resolver_match.url_name == 'employees' or request.resolver_match.url_name == 'employee-create' or request.resolver_match.url_name == 'employee-update' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'organizations:employees' %}">Xodimlar</a>
             {% endif %}
             {% if user.is_staff %}
             <a{% if request.resolver_match.namespace == 'admin' %} class="active" aria-current="page"{% endif %}
@@ -60,9 +68,9 @@
                 </p>
                 <h1>{% block heading %}Boshqaruv paneli{% endblock %}</h1>
             </div>
-            <div class="user-chip">
+            <a class="user-chip" href="{% url 'accounts:password-change' %}" title="Parolni almashtirish">
                 {{ user.get_full_name|default:user.email }}
-            </div>
+            </a>
         </header>
         {% if messages %}
         <div class="messages">

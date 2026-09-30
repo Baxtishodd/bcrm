@@ -11,7 +11,7 @@
 </nav>
 <section class="page-actions">
     <p class="muted">Price-list va product-list hujjatlari, muddatlari va tarixiy narxlari.</p>
-    <a class="button" href="{% url 'catalog:offer-create' %}">Yangi hujjat</a>
+    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:offer-create' %}">Yangi hujjat</a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">

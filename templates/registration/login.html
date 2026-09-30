@@ -15,6 +15,7 @@
         input{width:100%;padding:13px 14px;border-radius:10px;border:1px solid #2b405a;background:#0a1524;color:#fff;font-size:15px}
         button{width:100%;border:0;border-radius:10px;margin-top:22px;padding:14px;background:#14b8a6;color:#03201d;font-weight:800;cursor:pointer}
         .errorlist{color:#fb7185;padding-left:18px}
+        .helper-link{display:block;margin-top:18px;text-align:center;color:#5eead4;font-size:13px}
     </style>
 </head>
 <body>
@@ -26,7 +27,7 @@
     <label for="id_username">Email</label>{{ form.username }}
     <label for="id_password">Parol</label>{{ form.password }}
     <button type="submit">Kirish</button>
+    <a class="helper-link" href="{% url 'password-reset' %}">Parolni unutdingizmi?</a>
 </form>
 </body>
 </html>
-

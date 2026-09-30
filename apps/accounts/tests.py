@@ -1,5 +1,7 @@
+import re
 from unittest.mock import patch
 
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
@@ -147,3 +149,98 @@ class MailboxAccountTests(TestCase):
         self.assertFalse(account.smtp_is_verified)
         self.assertTrue(account.imap_is_verified)
         self.assertIn("SMTP blocked", account.last_error)
+
+
+class AccountSecurityTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="new.employee@example.com",
+            password="Temporary-password-2026",
+            must_change_password=True,
+        )
+        self.organization = Organization.objects.create(
+            name="Secure Textile",
+            slug="secure-textile",
+        )
+        self.membership = Membership.objects.create(
+            organization=self.organization,
+            user=self.user,
+            role=Membership.Role.SALES,
+        )
+
+    def test_first_login_is_forced_to_password_change(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:password-change"),
+            fetch_redirect_response=False,
+        )
+
+    def test_password_change_clears_first_login_requirement(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("accounts:password-change"),
+            {
+                "old_password": "Temporary-password-2026",
+                "new_password1": "New-secure-password-2026",
+                "new_password2": "New-secure-password-2026",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.must_change_password)
+        self.assertTrue(self.user.check_password("New-secure-password-2026"))
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_blocked_membership_ends_existing_session(self):
+        self.user.must_change_password = False
+        self.user.save(update_fields=["must_change_password"])
+        self.client.force_login(self.user)
+        self.membership.is_active = False
+        self.membership.save(update_fields=["is_active", "updated_at"])
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_api_requires_password_change_before_use(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get("/api/v1/crm/leads/")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["detail"],
+            "Davom etishdan oldin parolni almashtiring.",
+        )
+
+    def test_password_reset_email_and_link_clear_first_login_requirement(self):
+        response = self.client.post(
+            reverse("password-reset"),
+            {"email": self.user.email},
+        )
+
+        self.assertRedirects(response, reverse("password-reset-done"))
+        self.assertEqual(len(mail.outbox), 1)
+        reset_path = re.search(r"http://testserver(\S+)", mail.outbox[0].body).group(1)
+        confirm_response = self.client.get(reset_path)
+        self.assertEqual(confirm_response.status_code, 302)
+
+        response = self.client.post(
+            confirm_response.url,
+            {
+                "new_password1": "Reset-secure-password-2026",
+                "new_password2": "Reset-secure-password-2026",
+            },
+        )
+
+        self.assertRedirects(response, reverse("password-reset-complete"))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.must_change_password)
+        self.assertTrue(self.user.check_password("Reset-secure-password-2026"))

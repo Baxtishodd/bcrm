@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Savdo hisobotlari — BCRM{% endblock %}
+{% block heading %}Savdo hisobotlari{% endblock %}
+
+{% block content %}
+{% include "shared/page_navigation.html" with back_url="/" back_label="Ortga" current_label="Hisobotlar" %}
+
+<section class="panel report-filter-panel">
+    <form method="get" class="report-filters">
+        {% for field in form %}
+        <label>
+            <span>{{ field.label }}</span>
+            {{ field }}
+            {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        </label>
+        {% endfor %}
+        <div class="report-filter-actions">
+            <a class="button button-secondary" href="{% url 'sales-report' %}">Tozalash</a>
+            <button class="button" type="submit">Ko'rsatish</button>
+        </div>
+    </form>
+</section>
+
+<section class="stats report-stats">
+    <article><span>Jami leadlar</span><strong>{{ total_count }}</strong></article>
+    <article><span>Yutilgan</span><strong>{{ won_count }}</strong></article>
+    <article><span>Yutqazilgan</span><strong>{{ lost_count }}</strong></article>
+    <article><span>Yopilish konversiyasi</span><strong>{{ conversion_rate }}%</strong><small>Yutilgan / yopilgan leadlar</small></article>
+    <article><span>Tijorat takliflari</span><strong>{{ quotation_count }}</strong></article>
+    <article><span>Buyurtmalar</span><strong>{{ order_count }}</strong></article>
+</section>
+
+<section class="report-grid">
+    <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">Voronka</p><h2>Lead holatlari</h2></div></div>
+        <div class="report-bars">
+            {% for row in funnel_rows %}
+            <div class="report-bar-row">
+                <div><strong>{{ row.label }}</strong><span>{{ row.count }} ta · {{ row.percent }}%</span></div>
+                <div class="report-bar-track"><span class="report-bar report-bar-{{ row.value }}" style="width: {{ row.percent }}%"></span></div>
+            </div>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">Qiymat</p><h2>Valyutalar kesimida</h2></div></div>
+        <div class="currency-columns">
+            <div>
+                <h3>Ochiq pipeline</h3>
+                {% for row in pipeline_by_currency %}
+                <p><strong>{{ row.total }}</strong> {{ row.currency }} <small>{{ row.count }} ta lead</small></p>
+                {% empty %}<p class="empty">Ochiq qiymat yo'q.</p>{% endfor %}
+            </div>
+            <div>
+                <h3>Yutilgan qiymat</h3>
+                {% for row in won_by_currency %}
+                <p><strong>{{ row.total }}</strong> {{ row.currency }} <small>{{ row.count }} ta lead</small></p>
+                {% empty %}<p class="empty">Yutilgan qiymat yo'q.</p>{% endfor %}
+            </div>
+        </div>
+    </article>
+</section>
+
+<section class="report-grid report-grid-wide">
+    <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">Jamoa</p><h2>Menejerlar natijasi</h2></div></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Menejer</th><th>Jami</th><th>Ochiq</th><th>Yutilgan</th><th>Yutqazilgan</th><th>Konversiya</th></tr></thead>
+                <tbody>
+                {% for row in manager_rows %}
+                <tr><td><strong>{{ row.manager_name }}</strong></td><td>{{ row.total }}</td><td>{{ row.open }}</td><td>{{ row.won }}</td><td>{{ row.lost }}</td><td>{{ row.conversion_rate }}%</td></tr>
+                {% empty %}<tr><td colspan="6" class="empty">Tanlangan davrda ma'lumot yo'q.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">Tahlil</p><h2>Yutqazish sabablari</h2></div></div>
+        <div class="reason-list">
+            {% for row in lost_reasons %}
+            <div><span>{{ row.lost_reason }}</span><strong>{{ row.count }}</strong></div>
+            {% empty %}<p class="empty">Yutqazish sabablari topilmadi.</p>{% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="panel report-direction-panel">
+    <div class="panel-heading"><div><p class="eyebrow">Yo'nalishlar</p><h2>Mahsulot yo'nalishlari natijasi</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Yo'nalish</th><th>Jami</th><th>Yutilgan</th><th>Yutqazilgan</th></tr></thead>
+            <tbody>
+            {% for row in direction_rows %}
+            <tr><td><strong>{{ row.label }}</strong></td><td>{{ row.total }}</td><td>{{ row.won }}</td><td>{{ row.lost }}</td></tr>
+            {% empty %}<tr><td colspan="4" class="empty">Tanlangan davrda ma'lumot yo'q.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

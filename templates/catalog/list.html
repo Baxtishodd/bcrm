@@ -20,7 +20,7 @@
         </select>
         <button class="button button-secondary" type="submit">Qidirish</button>
     </form>
-    <a class="button" href="{% url 'catalog:create' %}">Yangi mahsulot</a>
+    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:create' %}">Yangi mahsulot</a>{% endif %}
 </section>
 <section class="product-grid">
     {% for product in products %}

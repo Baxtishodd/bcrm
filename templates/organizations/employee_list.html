@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Xodimlar — BCRM{% endblock %}
+{% block heading %}Xodimlar{% endblock %}
+
+{% block content %}
+{% include "shared/page_navigation.html" with back_url="/" back_label="Ortga" current_label="Xodimlar" %}
+<nav class="section-tabs">
+    <a href="{% url 'organizations:settings' %}">Rekvizitlar</a>
+    <a class="active" href="{% url 'organizations:employees' %}">Xodimlar</a>
+</nav>
+<section class="page-actions">
+    <form method="get" class="search">
+        <input type="search" name="q" value="{{ query }}" placeholder="Ism, email yoki telefon">
+        <select name="role">
+            <option value="">Barcha lavozimlar</option>
+            {% for value, label in role_choices %}<option value="{{ value }}"{% if role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <select name="status">
+            <option value="">Barcha holatlar</option>
+            <option value="active"{% if status == "active" %} selected{% endif %}>Faol</option>
+            <option value="inactive"{% if status == "inactive" %} selected{% endif %}>Bloklangan</option>
+        </select>
+        <button class="button button-secondary" type="submit">Qidirish</button>
+    </form>
+    <a class="button" href="{% url 'organizations:employee-create' %}">+ Xodim qo'shish</a>
+</section>
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Xodim</th><th>Telefon</th><th>Lavozim</th><th>Filial</th><th>Holati</th><th></th></tr></thead>
+            <tbody>
+            {% for membership in page %}
+                <tr>
+                    <td><strong>{{ membership.user.get_full_name|default:membership.user.email }}</strong><br><small>{{ membership.user.email }}</small></td>
+                    <td>{{ membership.user.phone|default:"—" }}</td>
+                    <td>{{ membership.get_role_display }}</td>
+                    <td>{{ membership.branch|default:"—" }}</td>
+                    <td>{% if membership.is_active %}<span class="badge badge-success">Faol</span>{% else %}<span class="badge badge-danger">Bloklangan</span>{% endif %}</td>
+                    <td><a class="table-link" href="{% url 'organizations:employee-update' membership.public_id %}">Tahrirlash</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="empty">Xodim topilmadi.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "shared/pagination.html" with page_obj=page %}
+</section>
+{% endblock %}

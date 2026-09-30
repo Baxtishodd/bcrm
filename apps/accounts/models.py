@@ -44,6 +44,7 @@ class User(AbstractUser):
         choices=Language.choices,
         default=Language.UZ,
     )
+    must_change_password = models.BooleanField(default=False)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

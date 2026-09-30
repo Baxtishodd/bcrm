@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.common.pagination import paginate_queryset
+from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
 from apps.crm.models import Activity
 from apps.crm.timeline import build_communication_timeline
@@ -66,7 +67,11 @@ def customer_list(request):
             "customers": pagination["page_obj"].object_list,
             "filter_form": filter_form,
             "filter_reset_url": "/customers/",
-            "filter_create_url": "/customers/new/",
+            "filter_create_url": (
+                "/customers/new/"
+                if request.crm_permissions[OrganizationPermission.MANAGE_CUSTOMERS]
+                else ""
+            ),
             "filter_create_label": "Yangi mijoz",
             "organization": request.organization,
             **pagination,
@@ -76,6 +81,7 @@ def customer_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
 def customer_create(request):
     form = CustomerCompanyForm(
         request.POST or None,
@@ -131,6 +137,7 @@ def customer_detail(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
 def customer_update(request, public_id):
     customer = get_object_or_404(
         CustomerCompany,
@@ -160,6 +167,7 @@ def customer_update(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
 def contact_create(request, public_id):
     customer = get_object_or_404(
         CustomerCompany,

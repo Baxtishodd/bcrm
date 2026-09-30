@@ -1,5 +1,7 @@
 from rest_framework import serializers, viewsets
 
+from apps.common.api_permissions import OrganizationWritePermission
+from apps.common.permissions import OrganizationPermission
 from apps.customers.api import current_organization
 
 from .models import Activity, Lead
@@ -64,6 +66,8 @@ class LeadSerializer(serializers.ModelSerializer):
 
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
+    permission_classes = (OrganizationWritePermission,)
+    required_write_permission = OrganizationPermission.MANAGE_LEADS
     filterset_fields = (
         "business_direction",
         "status",

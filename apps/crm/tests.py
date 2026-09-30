@@ -161,6 +161,33 @@ class TaskFrontendTests(TestCase):
         self.assertContains(response, "Call customer")
         self.assertNotContains(response, "Hidden task")
 
+    def test_task_list_renders_task_without_lead_or_customer(self):
+        Activity.objects.create(
+            organization=self.organization,
+            activity_type=Activity.Type.TASK,
+            subject="Internal reminder",
+        )
+
+        response = self.client.get(reverse("tasks:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Internal reminder")
+
+    def test_task_search_includes_direct_customer(self):
+        Activity.objects.create(
+            organization=self.organization,
+            customer=self.customer,
+            activity_type=Activity.Type.TASK,
+            subject="Direct customer task",
+        )
+
+        response = self.client.get(
+            reverse("tasks:list"),
+            {"q": "Task customer"},
+        )
+
+        self.assertContains(response, "Direct customer task")
+
     def test_lead_detail_has_logical_back_navigation(self):
         response = self.client.get(reverse("crm:detail", args=[self.lead.public_id]))
 

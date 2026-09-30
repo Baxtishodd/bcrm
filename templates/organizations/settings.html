@@ -5,6 +5,10 @@
 
 {% block content %}
 {% include "shared/page_navigation.html" with back_url="/" back_label="Ortga" current_label="Tashkilot sozlamalari" %}
+<nav class="section-tabs">
+    <a class="active" href="{% url 'organizations:settings' %}">Rekvizitlar</a>
+    <a href="{% url 'organizations:employees' %}">Xodimlar</a>
+</nav>
 <form method="post" enctype="multipart/form-data" class="settings-form">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}

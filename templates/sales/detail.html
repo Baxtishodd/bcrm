@@ -10,13 +10,19 @@
     <div class="panel-heading">
         <div><p class="eyebrow">{{ quotation.get_status_display }}</p><h2>{{ quotation.customer }}</h2></div>
         <div class="button-row">
+            {% if request.crm_permissions.manage_sales %}
             <a class="button" href="{% url 'sales:email-send' quotation.public_id %}">Email yuborish</a>
+            {% endif %}
             <a class="button" href="{% url 'sales:pdf' quotation.public_id %}">PDF yuklab olish</a>
+            {% if request.crm_permissions.manage_sales %}
             <a class="button button-secondary" href="{% url 'sales:document-edit' quotation.public_id %}">Hujjat muharriri</a>
+            {% endif %}
             <a class="button button-secondary" target="_blank" href="{% url 'sales:print' quotation.public_id %}">Chop ko'rinishi</a>
+            {% if request.crm_permissions.manage_sales %}
             <a class="button button-secondary" href="{% url 'sales:delivery-create' quotation.public_id %}">Yuborishni qayd etish</a>
             <a class="button button-secondary" href="{% url 'sales:update' quotation.public_id %}">Tahrirlash</a>
             <a class="button" href="{% url 'sales:line-create' quotation.public_id %}">Mahsulot qo'shish</a>
+            {% endif %}
         </div>
     </div>
     <dl class="details compact-details">
@@ -53,7 +59,7 @@
             </tfoot>
         </table>
     </div>
-    {% if quotation.lines.all %}
+    {% if quotation.lines.all and request.crm_permissions.manage_sales %}
     <div class="panel-footer">
         <form method="post" action="{% url 'sales:convert' quotation.public_id %}">
             {% csrf_token %}<button class="button" type="submit">Taklifdan buyurtma yaratish</button>
@@ -64,7 +70,7 @@
 <section class="panel detail-card quotation-history">
     <div class="panel-heading">
         <div><p class="eyebrow">Kommunikatsiya</p><h2>Yuborish tarixi</h2></div>
-        <a class="button button-secondary" href="{% url 'sales:delivery-create' quotation.public_id %}">Qayd qo'shish</a>
+        {% if request.crm_permissions.manage_sales %}<a class="button button-secondary" href="{% url 'sales:delivery-create' quotation.public_id %}">Qayd qo'shish</a>{% endif %}
     </div>
     <div class="table-wrap">
         <table>

@@ -1,5 +1,7 @@
 from rest_framework import serializers, viewsets
 
+from apps.common.api_permissions import OrganizationWritePermission
+from apps.common.permissions import OrganizationPermission
 from apps.customers.api import current_organization
 
 from .models import (
@@ -50,6 +52,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
+    permission_classes = (OrganizationWritePermission,)
+    required_write_permission = OrganizationPermission.MANAGE_CATALOG
     filterset_fields = (
         "category",
         "unit",

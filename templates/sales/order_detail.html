@@ -9,7 +9,7 @@
 <section class="panel detail-card">
     <div class="panel-heading">
         <div><p class="eyebrow">{{ order.get_status_display }}</p><h2>{{ order.customer }}</h2></div>
-        <a class="button button-secondary" href="{% url 'sales:order-update' order.public_id %}">Holat va to'lovni yangilash</a>
+        {% if request.crm_permissions.manage_sales %}<a class="button button-secondary" href="{% url 'sales:order-update' order.public_id %}">Holat va to'lovni yangilash</a>{% endif %}
     </div>
     <dl class="details compact-details">
         <div><dt>Buyurtma sanasi</dt><dd>{{ order.order_date|date:"d.m.Y" }}</dd></div>

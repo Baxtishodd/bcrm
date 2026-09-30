@@ -1,6 +1,10 @@
 from django import forms
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 
-from .models import Organization
+from apps.accounts.models import User
+
+from .models import Branch, Membership, Organization
 
 
 class OrganizationSettingsForm(forms.ModelForm):
@@ -112,3 +116,153 @@ class OrganizationSettingsForm(forms.ModelForm):
                 "Prefiks faqat harf, raqam va chiziqchadan iborat bo'lishi kerak."
             )
         return value
+
+
+class EmployeeCreateForm(forms.Form):
+    first_name = forms.CharField(label="Ismi", max_length=150)
+    last_name = forms.CharField(label="Familiyasi", max_length=150, required=False)
+    email = forms.EmailField(label="Email / login")
+    phone = forms.CharField(label="Telefon", max_length=30, required=False)
+    role = forms.ChoiceField(label="Lavozim")
+    branch = forms.ModelChoiceField(
+        label="Filial",
+        queryset=Branch.objects.none(),
+        required=False,
+        empty_label="Filial biriktirilmagan",
+    )
+    password1 = forms.CharField(
+        label="Vaqtinchalik parol",
+        required=False,
+        strip=False,
+        widget=forms.PasswordInput,
+        help_text="Yangi login uchun majburiy. Mavjud foydalanuvchi uchun bo'sh qoldiring.",
+    )
+    password2 = forms.CharField(
+        label="Parolni takrorlang",
+        required=False,
+        strip=False,
+        widget=forms.PasswordInput,
+    )
+
+    def __init__(self, *args, organization, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.organization = organization
+        self.fields["role"].choices = [
+            choice for choice in Membership.Role.choices if choice[0] != Membership.Role.OWNER
+        ]
+        self.fields["branch"].queryset = organization.branches.filter(is_active=True)
+
+    def clean_email(self):
+        email = User.objects.normalize_email(self.cleaned_data["email"]).lower()
+        if Membership.objects.filter(
+            organization=self.organization,
+            user__email__iexact=email,
+        ).exists():
+            raise forms.ValidationError("Bu xodim tashkilotga avval qo'shilgan.")
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        email = cleaned_data.get("email")
+        password1 = cleaned_data.get("password1")
+        password2 = cleaned_data.get("password2")
+        if not email:
+            return cleaned_data
+
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if not existing_user and not password1:
+            self.add_error("password1", "Yangi login uchun vaqtinchalik parol kiriting.")
+        if password1 != password2:
+            self.add_error("password2", "Parollar bir xil emas.")
+        if password1 and not existing_user:
+            candidate = User(email=email)
+            try:
+                validate_password(password1, user=candidate)
+            except ValidationError as error:
+                self.add_error("password1", error)
+        return cleaned_data
+
+    def save(self):
+        email = self.cleaned_data["email"]
+        user = User.objects.filter(email__iexact=email).first()
+        if user is None:
+            user = User.objects.create_user(
+                email=email,
+                password=self.cleaned_data["password1"],
+                first_name=self.cleaned_data["first_name"],
+                last_name=self.cleaned_data["last_name"],
+                phone=self.cleaned_data["phone"],
+                must_change_password=True,
+            )
+        return Membership.objects.create(
+            organization=self.organization,
+            user=user,
+            role=self.cleaned_data["role"],
+            branch=self.cleaned_data["branch"],
+        )
+
+
+class EmployeeUpdateForm(forms.Form):
+    first_name = forms.CharField(label="Ismi", max_length=150)
+    last_name = forms.CharField(label="Familiyasi", max_length=150, required=False)
+    email = forms.EmailField(label="Email / login", disabled=True)
+    phone = forms.CharField(label="Telefon", max_length=30, required=False)
+    role = forms.ChoiceField(label="Lavozim")
+    branch = forms.ModelChoiceField(
+        label="Filial",
+        queryset=Branch.objects.none(),
+        required=False,
+        empty_label="Filial biriktirilmagan",
+    )
+    is_active = forms.BooleanField(label="Faol xodim", required=False)
+
+    def __init__(self, *args, membership, actor_membership, **kwargs):
+        self.membership = membership
+        self.actor_membership = actor_membership
+        initial = kwargs.setdefault("initial", {})
+        initial.update(
+            {
+                "first_name": membership.user.first_name,
+                "last_name": membership.user.last_name,
+                "email": membership.user.email,
+                "phone": membership.user.phone,
+                "role": membership.role,
+                "branch": membership.branch,
+                "is_active": membership.is_active,
+            }
+        )
+        super().__init__(*args, **kwargs)
+        if membership.role == Membership.Role.OWNER:
+            self.fields["role"].choices = [
+                (Membership.Role.OWNER, Membership.Role.OWNER.label)
+            ]
+            self.fields["role"].disabled = True
+        else:
+            self.fields["role"].choices = [
+                choice
+                for choice in Membership.Role.choices
+                if choice[0] != Membership.Role.OWNER
+            ]
+        self.fields["branch"].queryset = membership.organization.branches.filter(
+            is_active=True
+        )
+
+    def clean_is_active(self):
+        is_active = self.cleaned_data["is_active"]
+        if self.membership == self.actor_membership and not is_active:
+            raise forms.ValidationError("O'zingizni bloklay olmaysiz.")
+        if self.membership.role == Membership.Role.OWNER and not is_active:
+            raise forms.ValidationError("Tashkilot egasini bloklab bo'lmaydi.")
+        return is_active
+
+    def save(self):
+        user = self.membership.user
+        user.first_name = self.cleaned_data["first_name"]
+        user.last_name = self.cleaned_data["last_name"]
+        user.phone = self.cleaned_data["phone"]
+        user.save(update_fields=["first_name", "last_name", "phone"])
+        self.membership.role = self.cleaned_data["role"]
+        self.membership.branch = self.cleaned_data["branch"]
+        self.membership.is_active = self.cleaned_data["is_active"]
+        self.membership.save(update_fields=["role", "branch", "is_active", "updated_at"])
+        return self.membership

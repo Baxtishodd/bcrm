@@ -10,7 +10,7 @@
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">Mijoz</p><h2>Asosiy ma'lumotlar</h2></div>
-            <a class="button button-secondary" href="{% url 'customers:update' customer.public_id %}">Tahrirlash</a>
+            {% if request.crm_permissions.manage_customers %}<a class="button button-secondary" href="{% url 'customers:update' customer.public_id %}">Tahrirlash</a>{% endif %}
         </div>
         <dl class="details">
             <div><dt>Holati</dt><dd>{{ customer.get_relationship_status_display }}</dd></div>
@@ -33,7 +33,7 @@
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">Aloqa</p><h2>Kontaktlar</h2></div>
-            <a class="button" href="{% url 'customers:contact-create' customer.public_id %}">Kontakt qo'shish</a>
+            {% if request.crm_permissions.manage_customers %}<a class="button" href="{% url 'customers:contact-create' customer.public_id %}">Kontakt qo'shish</a>{% endif %}
         </div>
         <div class="stack-list">
             {% for contact in customer.contacts.all %}
@@ -51,7 +51,7 @@
 <section class="panel detail-card quotation-history">
     <div class="panel-heading">
         <div><p class="eyebrow">Timeline</p><h2>Aloqa tarixi</h2></div>
-        <a class="button" href="{% url 'tasks:create' %}">Vazifa qo'shish</a>
+        {% if request.crm_permissions.manage_tasks %}<a class="button" href="{% url 'tasks:create' %}">Vazifa qo'shish</a>{% endif %}
     </div>
     {% include "shared/communication_timeline.html" %}
 </section>

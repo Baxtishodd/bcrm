@@ -14,7 +14,7 @@
         </select>
         <button class="button button-secondary" type="submit">Ko'rsatish</button>
     </form>
-    <a class="button" href="{% url 'tasks:create' %}">Yangi vazifa</a>
+    {% if request.crm_permissions.manage_tasks %}<a class="button" href="{% url 'tasks:create' %}">Yangi vazifa</a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">
@@ -24,7 +24,10 @@
             {% for task in tasks %}
             <tr{% if not task.completed_at and task.due_at and task.due_at < now %} class="row-overdue"{% endif %}>
                 <td><strong>{{ task.subject }}</strong><br><small>{{ task.get_activity_type_display }}</small></td>
-                <td>{% if task.lead %}<a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.lead.title }}</a><br>{% endif %}<small>{{ task.customer|default:task.lead.customer|default:"—" }}</small></td>
+                <td>
+                    {% if task.lead %}<a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.lead.title }}</a><br>{% endif %}
+                    <small>{% if task.customer %}{{ task.customer }}{% elif task.lead and task.lead.customer %}{{ task.lead.customer }}{% else %}—{% endif %}</small>
+                </td>
                 <td>{{ task.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</td>
                 <td>{% if task.assigned_to %}{{ task.assigned_to.get_full_name|default:task.assigned_to.email }}{% else %}—{% endif %}</td>
                 <td>
@@ -33,7 +36,7 @@
                     {% else %}<span class="badge">Ochiq</span>{% endif %}
                 </td>
                 <td>
-                    {% if not task.completed_at %}
+                    {% if request.crm_permissions.manage_tasks and not task.completed_at %}
                     <form method="post" action="{% url 'tasks:complete' task.public_id %}">
                         {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <button class="button button-small" type="submit">Bajarildi</button>

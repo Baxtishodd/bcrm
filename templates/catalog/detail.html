@@ -11,10 +11,12 @@
         <div class="panel-heading">
             <div><p class="eyebrow">{{ product.article }}</p><h2>Mahsulot</h2></div>
             <div class="button-row">
+                {% if request.crm_permissions.manage_catalog %}
                 {% if product.category == 'yarn' or product.category == 'woven_fabric' %}
                 <a class="button button-secondary" href="{% url 'catalog:specification-update' product.public_id %}">Texnik xususiyatlar</a>
                 {% endif %}
                 <a class="button button-secondary" href="{% url 'catalog:update' product.public_id %}">Tahrirlash</a>
+                {% endif %}
             </div>
         </div>
         <dl class="details">
@@ -66,7 +68,7 @@
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">SKU</p><h2>Rang-o'lcham variantlari</h2></div>
-            <a class="button" href="{% url 'catalog:variant-create' product.public_id %}">Variant qo'shish</a>
+            {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:variant-create' product.public_id %}">Variant qo'shish</a>{% endif %}
         </div>
         <div class="table-wrap">
             <table>

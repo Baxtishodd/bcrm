@@ -94,12 +94,23 @@ aloqa tarixini ko'radi va keyingi bog'lanish vazifasini unutmaydi.
 
 ### P2 — Boshlang'ich savdo hisobotlari
 
-- [ ] Savdo voronkasi konversiyasi va yutqazish sabablarini ko'rsatish.
-- [ ] Menejer, yo'nalish va davr bo'yicha filtrlash qo'shish.
+- [x] Savdo voronkasi konversiyasi va yutqazish sabablarini ko'rsatish.
+- [x] Menejer, yo'nalish va davr bo'yicha filtrlash qo'shish.
 - [ ] Rejadagi va haqiqiy tushum uchun ma'lumot modelini aniqlash.
 
 **Tayyorlik mezoni:** rahbar joriy savdo voronkasi, yutuq va yo'qotishlarni
 bitta sahifada ko'ra oladi.
+
+### P0 — Xodimlar va kirish xavfsizligi
+
+- [x] Direktor va tashkilot egasi uchun xodim qo'shish hamda tahrirlash.
+- [x] Yangi xodimni vaqtinchalik parol bilan yaratish.
+- [x] Birinchi kirishda parolni majburiy almashtirish.
+- [x] Lavozimlar bo'yicha sahifa va yozish amallarini cheklash.
+- [x] Bloklangan xodimning faol sessiyasini avtomatik tugatish.
+
+**Tayyorlik mezoni:** yangi xodim xavfsiz tarzda tizimga kiradi, faqat o'z
+lavozimiga ruxsat berilgan amallarni bajaradi va bloklanganda tizimdan chiqadi.
 
 ### Kun yakuni
 
@@ -128,10 +139,10 @@ bitta sahifada ko'ra oladi.
 
 ### Hisobot va boshqaruv
 
-- [ ] Savdo voronkasi konversiyasi va yo'qotish sabablarini ko'rsatish.
-- [ ] Menejer, yo'nalish va davr bo'yicha savdo hisobotlarini yaratish.
+- [x] Savdo voronkasi konversiyasi va yo'qotish sabablarini ko'rsatish.
+- [x] Menejer, yo'nalish va davr bo'yicha savdo hisobotlarini yaratish.
 - [ ] Rejadagi va haqiqiy tushumni taqqoslash.
-- [ ] Rollar va amallar bo'yicha batafsil ruxsat tizimini qo'shish.
+- [x] Rollar va amallar bo'yicha batafsil ruxsat tizimini qo'shish.
 
 ## Ishlash tartibi
 

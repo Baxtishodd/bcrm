@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
 
 from .forms import (
@@ -94,6 +95,7 @@ def price_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def product_create(request):
     form = ProductForm(
         request.POST or None,
@@ -142,6 +144,7 @@ def product_detail(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def product_specification_update(request, public_id):
     product = get_object_or_404(
         Product,
@@ -205,6 +208,7 @@ def offer_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def offer_create(request):
     form = PriceListForm(request.POST or None)
     if form.is_valid():
@@ -243,6 +247,7 @@ def offer_detail(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def offer_update(request, public_id):
     offer = get_object_or_404(
         PriceList,
@@ -268,6 +273,7 @@ def offer_update(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def offer_document_edit(request, public_id):
     offer = get_object_or_404(
         PriceList.objects.select_related("organization").prefetch_related(
@@ -336,6 +342,7 @@ def offer_pdf(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def offer_line_create(request, public_id):
     offer = get_object_or_404(
         PriceList,
@@ -375,6 +382,7 @@ def offer_line_create(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def product_update(request, public_id):
     product = get_object_or_404(
         Product,
@@ -405,6 +413,7 @@ def product_update(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
 def variant_create(request, public_id):
     product = get_object_or_404(
         Product,

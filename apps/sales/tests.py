@@ -87,6 +87,32 @@ class QuotationConversionTests(TestCase):
         self.assertEqual(self.quotation.tax_amount, Decimal("216000"))
         self.assertEqual(self.quotation.total, Decimal("2016000"))
 
+    def test_viewer_can_read_quotation_but_cannot_change_it(self):
+        membership = Membership.objects.get(
+            organization=self.organization,
+            user=self.user,
+        )
+        membership.role = Membership.Role.VIEWER
+        membership.save(update_fields=["role", "updated_at"])
+
+        detail_url = reverse("sales:detail", args=[self.quotation.public_id])
+        update_url = reverse("sales:update", args=[self.quotation.public_id])
+        email_url = reverse("sales:email-send", args=[self.quotation.public_id])
+
+        detail_response = self.client.get(detail_url)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertNotContains(detail_response, f'href="{update_url}"')
+        self.assertNotContains(detail_response, f'href="{email_url}"')
+        self.assertEqual(self.client.get(update_url).status_code, 403)
+        self.assertEqual(self.client.get(email_url).status_code, 403)
+
+    def test_sales_member_has_manage_sales_permission(self):
+        response = self.client.get(
+            reverse("sales:update", args=[self.quotation.public_id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+
     def test_conversion_creates_one_order_and_copies_lines(self):
         order, created = convert_quotation_to_order(self.quotation, self.user)
         duplicate, duplicate_created = convert_quotation_to_order(self.quotation, self.user)

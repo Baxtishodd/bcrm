@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 
+from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
 from apps.sales.models import Quotation
 
@@ -60,6 +61,7 @@ def lead_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_LEADS)
 def lead_create(request):
     form = LeadForm(
         request.POST or None,
@@ -141,6 +143,7 @@ def lead_detail(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_LEADS)
 def lead_update(request, public_id):
     lead = get_object_or_404(
         Lead,
@@ -170,6 +173,7 @@ def lead_update(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_LEADS)
 def lead_status_update(request, public_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -268,6 +272,7 @@ def lead_status_update(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_TASKS)
 def activity_create(request, public_id):
     lead = get_object_or_404(
         Lead,
@@ -315,6 +320,7 @@ def task_list(request):
             Q(subject__icontains=query)
             | Q(lead__title__icontains=query)
             | Q(lead__customer__name__icontains=query)
+            | Q(customer__name__icontains=query)
         )
     now = timezone.now()
     return render(
@@ -332,6 +338,7 @@ def task_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_TASKS)
 def task_create(request):
     form = TaskForm(request.POST or None, organization=request.organization)
     if form.is_valid():
@@ -354,6 +361,7 @@ def task_create(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_TASKS)
 def task_complete(request, public_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])

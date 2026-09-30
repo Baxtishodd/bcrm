@@ -13,7 +13,7 @@
         <input type="search" name="q" value="{{ query }}" placeholder="Taklif raqami yoki mijoz">
         <button class="button button-secondary" type="submit">Qidirish</button>
     </form>
-    <a class="button" href="{% url 'sales:create' %}">Yangi taklif</a>
+    {% if request.crm_permissions.manage_sales %}<a class="button" href="{% url 'sales:create' %}">Yangi taklif</a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">

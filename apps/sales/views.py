@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.accounts.models import MailboxAccount
+from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
 from apps.crm.models import Lead
 
@@ -56,6 +57,7 @@ def quotation_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def quotation_create(request, lead_public_id=None):
     source_lead = None
     initial = {}
@@ -156,6 +158,7 @@ def quotation_detail(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def quotation_delivery_create(request, public_id):
     quotation = get_object_or_404(
         Quotation,
@@ -191,6 +194,7 @@ def quotation_delivery_create(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def quotation_email_send(request, public_id):
     quotation = get_object_or_404(
         Quotation.objects.select_related(
@@ -279,6 +283,7 @@ def quotation_email_send(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def quotation_update(request, public_id):
     quotation = get_object_or_404(
         Quotation,
@@ -308,6 +313,7 @@ def quotation_update(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def quotation_line_create(request, public_id):
     quotation = get_object_or_404(
         Quotation,
@@ -357,6 +363,7 @@ def quotation_print(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def quotation_document_edit(request, public_id):
     quotation = get_object_or_404(
         Quotation.objects.select_related(
@@ -438,6 +445,7 @@ def quotation_pdf(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def quotation_convert(request, public_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -506,6 +514,7 @@ def order_detail(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_SALES)
 def order_update(request, public_id):
     order = get_object_or_404(
         SalesOrder,

@@ -11,7 +11,10 @@
         <div class="panel-heading">
             <div><p class="eyebrow">Lead</p><h2>{{ lead.get_status_display }}</h2></div>
             <div class="button-row">
+                {% if request.crm_permissions.manage_leads %}
                 <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">Tahrirlash</a>
+                {% endif %}
+                {% if request.crm_permissions.manage_sales %}
                 {% if lead.status == "won" and linked_order %}
                 <a class="button" href="{% url 'sales:order-detail' linked_order.public_id %}">Buyurtmani ko'rish</a>
                 {% elif lead.status == "won" and orderable_quotation %}
@@ -21,6 +24,7 @@
                 {% endif %}
                 {% if lead.customer_id %}
                 <a class="button" href="{% url 'sales:create-from-lead' lead.public_id %}">Savdo taklifi yaratish</a>
+                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -43,7 +47,7 @@
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">Timeline</p><h2>Faoliyatlar</h2></div>
-            <a class="button" href="{% url 'crm:activity-create' lead.public_id %}">Faoliyat qo'shish</a>
+            {% if request.crm_permissions.manage_tasks %}<a class="button" href="{% url 'crm:activity-create' lead.public_id %}">Faoliyat qo'shish</a>{% endif %}
         </div>
         {% include "shared/communication_timeline.html" %}
     </article>
@@ -51,9 +55,9 @@
 <section class="panel detail-card quotation-history">
     <div class="panel-heading">
         <div><p class="eyebrow">Savdo</p><h2>Takliflar tarixi</h2></div>
-        {% if lead.customer_id %}
+        {% if request.crm_permissions.manage_sales and lead.customer_id %}
         <a class="button" href="{% url 'sales:create-from-lead' lead.public_id %}">Yangi taklif</a>
-        {% else %}
+        {% elif request.crm_permissions.manage_leads and not lead.customer_id %}
         <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">Mijoz biriktirish</a>
         {% endif %}
     </div>

@@ -9,9 +9,8 @@ class BcrmUserAdmin(UserAdmin):
     ordering = ("email",)
     list_display = ("email", "first_name", "last_name", "is_staff", "is_active")
     fieldsets = UserAdmin.fieldsets + (
-        ("BCRM", {"fields": ("phone", "preferred_language")}),
+        ("BCRM", {"fields": ("phone", "preferred_language", "must_change_password")}),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
         ("BCRM", {"fields": ("email", "phone")}),
     )
-

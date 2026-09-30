@@ -16,7 +16,7 @@
         </select>
         <button class="button button-secondary" type="submit">Qidirish</button>
     </form>
-    <a class="button" href="{% url 'crm:create' %}">Yangi lead</a>
+    {% if request.crm_permissions.manage_leads %}<a class="button" href="{% url 'crm:create' %}">Yangi lead</a>{% endif %}
 </section>
 
 {% include "shared/kanban_board.html" with kanban_item_template="crm/_lead_card.html" kanban_empty_label="Lead yo'q" kanban_update_field="status" kanban_error_message="Lead holatini saqlab bo'lmadi." %}
