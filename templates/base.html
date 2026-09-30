@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}BCRM{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260929-4">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260930-2">
 </head>
 <body>
 <div class="app-shell">
@@ -34,6 +34,8 @@
                href="{% url 'catalog:list' %}">Mahsulotlar</a>
             <a{% if request.resolver_match.namespace == 'sales' %} class="active" aria-current="page"{% endif %}
                href="{% url 'sales:list' %}">Savdo</a>
+            <a{% if request.resolver_match.namespace == 'accounts' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'accounts:mailbox-list' %}">Email sozlamalari</a>
             {% if organization and request.membership.role == 'owner' or organization and request.membership.role == 'director' or user.is_superuser %}
             <a{% if request.resolver_match.namespace == 'organizations' %} class="active" aria-current="page"{% endif %}
                href="{% url 'organizations:settings' %}">Tashkilot sozlamalari</a>
@@ -72,6 +74,8 @@
         {% block content %}{% endblock %}
     </main>
 </div>
+    <script src="{% static 'js/smart-select.js' %}?v=20260930-4" defer></script>
+    <script src="{% static 'js/form-submit.js' %}?v=20260930-1" defer></script>
 {% block extra_scripts %}{% endblock %}
 </body>
 </html>

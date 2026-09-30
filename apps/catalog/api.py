@@ -40,6 +40,13 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         exclude = ("organization",)
 
+    def validate(self, attrs):
+        organization = current_organization(self.context["request"].user)
+        fabric = attrs.get("fabric", getattr(self.instance, "fabric", None))
+        if fabric and (organization is None or fabric.organization_id != organization.id):
+            raise serializers.ValidationError({"fabric": "Bu mato boshqa korxonaga tegishli."})
+        return attrs
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer

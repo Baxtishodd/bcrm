@@ -16,6 +16,7 @@ from apps.sales.models import Quotation
 
 from .forms import ActivityForm, LeadForm, TaskForm
 from .models import Activity, Lead, PipelineStage
+from .timeline import build_communication_timeline
 
 
 @login_required
@@ -95,13 +96,21 @@ def lead_detail(request, public_id):
             "activities",
             Prefetch(
                 "quotations",
-                queryset=Quotation.objects.select_related("salesorder").prefetch_related("lines"),
+                queryset=Quotation.objects.select_related("salesorder").prefetch_related(
+                    "lines",
+                    "deliveries__sent_by",
+                ),
             ),
         ),
         public_id=public_id,
         organization=request.organization,
     )
     quotations = list(lead.quotations.all())
+    deliveries = [
+        delivery
+        for quotation in quotations
+        for delivery in quotation.deliveries.all()
+    ]
     linked_order = next(
         (quotation.salesorder for quotation in quotations if hasattr(quotation, "salesorder")),
         None,
@@ -121,6 +130,10 @@ def lead_detail(request, public_id):
             "lead": lead,
             "linked_order": linked_order,
             "orderable_quotation": orderable_quotation,
+            "timeline": build_communication_timeline(
+                activities=lead.activities.all(),
+                deliveries=deliveries,
+            ),
             "organization": request.organization,
         },
     )
@@ -269,6 +282,7 @@ def activity_create(request, public_id):
         activity = form.save(commit=False)
         activity.organization = request.organization
         activity.lead = lead
+        activity.customer = lead.customer
         activity.save()
         messages.success(request, "Faoliyat qo'shildi.")
         return redirect("crm:detail", public_id=lead.public_id)
@@ -291,7 +305,7 @@ def task_list(request):
     query = request.GET.get("q", "").strip()
     tasks = Activity.objects.filter(
         organization=request.organization,
-    ).select_related("lead", "lead__customer", "assigned_to")
+    ).select_related("lead", "lead__customer", "customer", "assigned_to")
     if status == "completed":
         tasks = tasks.filter(completed_at__isnull=False)
     elif status != "all":

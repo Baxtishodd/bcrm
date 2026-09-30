@@ -1,0 +1,26 @@
+<div class="stack-list communication-timeline">
+    {% for event in timeline %}
+    <div class="stack-item">
+        {% if event.kind == "delivery" %}
+        <strong>{{ event.delivery.quotation.number }} — {{ event.delivery.get_channel_display }}</strong>
+        <span>{{ event.delivery.recipient }} · {{ event.delivery.get_status_display }}</span>
+        {% if event.delivery.subject %}<small>{{ event.delivery.subject }}</small>{% endif %}
+        <small>{{ event.occurred_at|date:"d.m.Y H:i" }}{% if event.delivery.sent_by %} · {{ event.delivery.sent_by.get_full_name|default:event.delivery.sent_by.email }}{% endif %}</small>
+        <a class="table-link" href="{% url 'sales:detail' event.delivery.quotation.public_id %}">Taklifni ko'rish</a>
+        {% else %}
+        <strong>{{ event.activity.subject }}</strong>
+        <span>{{ event.activity.get_activity_type_display }}{% if event.activity.lead %} · {{ event.activity.lead.title }}{% endif %}</span>
+        {% if event.activity.details %}<small>{{ event.activity.details }}</small>{% endif %}
+        <small>Qayd: {{ event.occurred_at|date:"d.m.Y H:i" }}{% if event.activity.due_at %} · Muddat: {{ event.activity.due_at|date:"d.m.Y H:i" }}{% endif %}</small>
+        {% if event.activity.completed_at %}<span class="badge badge-success">Bajarilgan</span>{% else %}
+        <form method="post" action="{% url 'tasks:complete' event.activity.public_id %}">
+            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+            <button class="link-button" type="submit">Bajarildi deb belgilash</button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% empty %}
+    <p class="empty">Aloqa tarixi hali yo'q.</p>
+    {% endfor %}
+</div>

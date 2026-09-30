@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -51,8 +52,18 @@ class Quotation(OrganizationScopedModel):
         default=Currency.UZS,
     )
     valid_until = models.DateField(null=True, blank=True)
-    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
+    tax_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
     delivery_terms = models.CharField(max_length=255, blank=True)
     payment_terms = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
@@ -92,10 +103,7 @@ class Quotation(OrganizationScopedModel):
 
     @property
     def subtotal(self):
-        return sum(
-            line.quantity * line.unit_price
-            for line in self.lines.all()
-        )
+        return sum(line.quantity * line.unit_price for line in self.lines.all())
 
     @property
     def discount_amount(self):
@@ -125,8 +133,16 @@ class QuotationLine(OrganizationScopedModel):
         on_delete=models.SET_NULL,
     )
     description = models.CharField(max_length=255, blank=True)
-    quantity = models.DecimalField(max_digits=14, decimal_places=3)
-    unit_price = models.DecimalField(max_digits=18, decimal_places=2)
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+    unit_price = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
 
     @property
     def line_total(self):
@@ -154,6 +170,9 @@ class QuotationDelivery(OrganizationScopedModel):
     )
     channel = models.CharField(max_length=20, choices=Channel.choices)
     recipient = models.CharField(max_length=255)
+    sender = models.EmailField(blank=True)
+    subject = models.CharField(max_length=255, blank=True)
+    message = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -202,8 +221,18 @@ class SalesOrder(OrganizationScopedModel):
     )
     order_date = models.DateField()
     delivery_date = models.DateField(null=True, blank=True)
-    advance_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
-    paid_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    advance_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    paid_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -262,8 +291,14 @@ class OrderLine(OrganizationScopedModel):
         max_digits=18,
         decimal_places=2,
         default=0,
+        validators=[MinValueValidator(Decimal("0"))],
     )
-    quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        default=0,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
 
     @property
     def line_total(self):

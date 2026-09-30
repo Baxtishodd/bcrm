@@ -24,7 +24,7 @@
             {% for task in tasks %}
             <tr{% if not task.completed_at and task.due_at and task.due_at < now %} class="row-overdue"{% endif %}>
                 <td><strong>{{ task.subject }}</strong><br><small>{{ task.get_activity_type_display }}</small></td>
-                <td><a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.lead.title }}</a><br><small>{{ task.lead.customer|default:"—" }}</small></td>
+                <td>{% if task.lead %}<a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.lead.title }}</a><br>{% endif %}<small>{{ task.customer|default:task.lead.customer|default:"—" }}</small></td>
                 <td>{{ task.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</td>
                 <td>{% if task.assigned_to %}{{ task.assigned_to.get_full_name|default:task.assigned_to.email }}{% else %}—{% endif %}</td>
                 <td>

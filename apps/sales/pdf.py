@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 from django.utils.text import slugify
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
@@ -117,11 +118,7 @@ def _product_specification(line):
                 (
                     product.fabric.composition,
                     f"{product.fabric.gsm} GSM" if product.fabric.gsm else "",
-                    (
-                        f"{_number(product.fabric.width_cm)} cm"
-                        if product.fabric.width_cm
-                        else ""
-                    ),
+                    (f"{_number(product.fabric.width_cm)} cm" if product.fabric.width_cm else ""),
                 )
             )
         values.extend((product.yarn_count, product.get_finish_display()))
@@ -199,9 +196,7 @@ def build_quotation_pdf(quotation):
         alignment=TA_CENTER,
     )
     table_text = ParagraphStyle("TableText", parent=small, textColor=INK)
-    table_number = ParagraphStyle(
-        "TableNumber", parent=small, textColor=INK, alignment=TA_RIGHT
-    )
+    table_number = ParagraphStyle("TableNumber", parent=small, textColor=INK, alignment=TA_RIGHT)
 
     story = []
     logo = _image(organization.logo, 42 * mm, 20 * mm)
@@ -228,7 +223,10 @@ def build_quotation_pdf(quotation):
     document_meta = [
         _paragraph(quotation.document_title, title),
         _paragraph(f"№ {quotation.number}", table_number),
-        _paragraph(quotation.created_at.strftime("%d.%m.%Y"), table_number),
+        _paragraph(
+            timezone.localtime(quotation.created_at).strftime("%d.%m.%Y"),
+            table_number,
+        ),
     ]
     header = Table([[company_block, document_meta]], colWidths=[105 * mm, 56 * mm])
     header.setStyle(
@@ -256,8 +254,7 @@ def build_quotation_pdf(quotation):
     if address_values:
         address_cells = [
             Paragraph(
-                f"<font color='#134E4A'><b>{escape(name)}</b></font><br/>"
-                f"{escape(str(value))}",
+                f"<font color='#134E4A'><b>{escape(name)}</b></font><br/>{escape(str(value))}",
                 body,
             )
             for name, value in address_values
@@ -265,8 +262,7 @@ def build_quotation_pdf(quotation):
         if len(address_cells) % 2:
             address_cells.append("")
         address_rows = [
-            address_cells[index : index + 2]
-            for index in range(0, len(address_cells), 2)
+            address_cells[index : index + 2] for index in range(0, len(address_cells), 2)
         ]
         address_table = Table(address_rows, colWidths=[80.5 * mm, 80.5 * mm])
         address_table.setStyle(

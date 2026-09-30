@@ -20,6 +20,47 @@ class LeadSerializer(serializers.ModelSerializer):
         exclude = ("organization",)
         read_only_fields = ("public_id", "created_at", "updated_at")
 
+    def validate(self, attrs):
+        organization = current_organization(self.context["request"].user)
+        if organization is None:
+            raise serializers.ValidationError("Foydalanuvchiga korxona biriktirilmagan.")
+        customer = attrs.get("customer", getattr(self.instance, "customer", None))
+        contact = attrs.get("contact", getattr(self.instance, "contact", None))
+        stage = attrs.get("stage", getattr(self.instance, "stage", None))
+        assigned_to = attrs.get("assigned_to", getattr(self.instance, "assigned_to", None))
+        status = attrs.get("status", getattr(self.instance, "status", Lead.Status.NEW))
+        lost_reason = attrs.get(
+            "lost_reason",
+            getattr(self.instance, "lost_reason", ""),
+        )
+        if customer and customer.organization_id != organization.id:
+            raise serializers.ValidationError({"customer": "Bu mijoz boshqa korxonaga tegishli."})
+        if contact and contact.organization_id != organization.id:
+            raise serializers.ValidationError({"contact": "Bu kontakt boshqa korxonaga tegishli."})
+        if contact and customer and contact.company_id != customer.id:
+            raise serializers.ValidationError(
+                {"contact": "Kontakt tanlangan mijozga tegishli emas."}
+            )
+        if stage and stage.organization_id != organization.id:
+            raise serializers.ValidationError({"stage": "Bu bosqich boshqa korxonaga tegishli."})
+        if (
+            assigned_to
+            and not assigned_to.memberships.filter(
+                organization=organization,
+                is_active=True,
+            ).exists()
+        ):
+            raise serializers.ValidationError({"assigned_to": "Xodim bu korxonaga tegishli emas."})
+        if status == Lead.Status.LOST and not str(lost_reason or "").strip():
+            raise serializers.ValidationError(
+                {"lost_reason": "Yutqazilgan Lead uchun sababni kiriting."}
+            )
+        if status == Lead.Status.WON and not customer:
+            raise serializers.ValidationError(
+                {"customer": "Yutilgan Lead uchun mijozni biriktiring."}
+            )
+        return attrs
+
 
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer

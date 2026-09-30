@@ -27,6 +27,19 @@ class CustomerCompanySerializer(serializers.ModelSerializer):
         exclude = ("organization",)
         read_only_fields = ("public_id", "created_at", "updated_at")
 
+    def validate(self, attrs):
+        organization = current_organization(self.context["request"].user)
+        owner = attrs.get("owner", getattr(self.instance, "owner", None))
+        if (
+            owner
+            and not owner.memberships.filter(
+                organization=organization,
+                is_active=True,
+            ).exists()
+        ):
+            raise serializers.ValidationError({"owner": "Xodim bu korxonaga tegishli emas."})
+        return attrs
+
 
 class CustomerCompanyViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerCompanySerializer

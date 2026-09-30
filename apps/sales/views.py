@@ -9,6 +9,7 @@ from django.http import HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from apps.accounts.models import MailboxAccount
 from apps.common.tenancy import organization_required
 from apps.crm.models import Lead
 
@@ -16,13 +17,19 @@ from .forms import (
     QuotationDeliveryForm,
     QuotationDocumentForm,
     QuotationDocumentLineFormSet,
+    QuotationEmailForm,
     QuotationForm,
     QuotationLineForm,
     SalesOrderForm,
 )
 from .models import Quotation, QuotationDelivery, SalesOrder
 from .pdf import build_quotation_pdf, quotation_pdf_filename
-from .services import convert_quotation_to_order, next_document_number
+from .services import (
+    QuotationEmailError,
+    convert_quotation_to_order,
+    next_document_number,
+    send_quotation_email,
+)
 
 
 @login_required
@@ -176,6 +183,94 @@ def quotation_delivery_create(request, public_id):
         {
             "form": form,
             "page_title": f"{quotation.number} yuborilishini qayd etish",
+            "cancel_url": f"/sales/{quotation.public_id}/",
+            "organization": request.organization,
+        },
+    )
+
+
+@login_required
+@organization_required
+def quotation_email_send(request, public_id):
+    quotation = get_object_or_404(
+        Quotation.objects.select_related(
+            "organization",
+            "customer",
+            "contact",
+            "lead",
+            "assigned_to",
+        ).prefetch_related(
+            "lines__product",
+            "lines__variant__color",
+            "lines__variant__size",
+        ),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    recipient = ""
+    if quotation.contact and quotation.contact.email:
+        recipient = quotation.contact.email
+    elif quotation.customer.email:
+        recipient = quotation.customer.email
+    accounts = MailboxAccount.objects.filter(
+        organization=request.organization,
+        user=request.user,
+        is_active=True,
+    )
+    default_account = accounts.filter(is_default=True).first() or accounts.first()
+    initial = {
+        "account": default_account,
+        "recipient": recipient,
+        "subject": f"{quotation.number} — {request.organization.document_name} tijorat taklifi",
+        "message": (
+            f"Assalomu alaykum,\n\n{quotation.number} raqamli tijorat taklifini "
+            "PDF ko'rinishida ilova qilmoqdamiz.\n\nHurmat bilan,\n"
+            f"{request.organization.document_name}"
+        ),
+        "follow_up_at": timezone.localtime(
+            timezone.now() + timedelta(days=3)
+        ).strftime("%Y-%m-%dT%H:%M"),
+    }
+    form = QuotationEmailForm(
+        request.POST or None,
+        initial=initial,
+        accounts=accounts,
+    )
+    if form.is_valid():
+        try:
+            send_quotation_email(
+                quotation=quotation,
+                actor=request.user,
+                **form.cleaned_data,
+            )
+        except QuotationEmailError as error:
+            form.add_error(None, str(error))
+        else:
+            messages.success(
+                request,
+                "Taklif email orqali yuborildi va follow-up vazifasi yaratildi.",
+            )
+            return redirect("sales:detail", public_id=quotation.public_id)
+    return render(
+        request,
+        "shared/form.html",
+        {
+            "form": form,
+            "page_title": f"{quotation.number} taklifini email orqali yuborish",
+            "submit_label": "Email yuborish",
+            "submit_loading_label": "Yuborilmoqda...",
+            "submit_waiting_message": (
+                "SMTP server javobi kutilmoqda. Tugmani qayta bosmang — "
+                "natija avtomatik ko'rsatiladi."
+            ),
+            "form_notice": (
+                "Email yuborishdan oldin shaxsiy IMAP va SMTP akkauntingizni ulang."
+                if not default_account
+                else "Xat tanlangan shaxsiy SMTP akkauntingiz orqali yuboriladi."
+            ),
+            "form_notice_url": "/account/email/new/" if not default_account else "",
+            "form_notice_link": "Email akkauntini ulash",
+            "submit_disabled": not default_account,
             "cancel_url": f"/sales/{quotation.public_id}/",
             "organization": request.organization,
         },

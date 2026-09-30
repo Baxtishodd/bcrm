@@ -45,22 +45,7 @@
             <div><p class="eyebrow">Timeline</p><h2>Faoliyatlar</h2></div>
             <a class="button" href="{% url 'crm:activity-create' lead.public_id %}">Faoliyat qo'shish</a>
         </div>
-        <div class="stack-list">
-            {% for activity in lead.activities.all %}
-            <div class="stack-item">
-                <strong>{{ activity.subject }}</strong>
-                <span>{{ activity.get_activity_type_display }}</span>
-                <small>{{ activity.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</small>
-                {% if activity.completed_at %}<span class="badge badge-success">Bajarilgan</span>{% else %}
-                <form method="post" action="{% url 'tasks:complete' activity.public_id %}">
-                    {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-                    <button class="link-button" type="submit">Bajarildi deb belgilash</button>
-                </form>{% endif %}
-            </div>
-            {% empty %}
-            <p class="empty">Faoliyatlar hali yo'q.</p>
-            {% endfor %}
-        </div>
+        {% include "shared/communication_timeline.html" %}
     </article>
 </section>
 <section class="panel detail-card quotation-history">

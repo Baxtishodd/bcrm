@@ -1,8 +1,9 @@
 from django import forms
 from django.forms import inlineformset_factory
 
-from apps.accounts.models import User
+from apps.accounts.models import MailboxAccount, User
 from apps.catalog.models import Product, ProductVariant
+from apps.common.widgets import DependentContactSelect, SearchableSelect
 from apps.crm.models import Lead
 from apps.customers.models import Contact, CustomerCompany
 
@@ -28,6 +29,8 @@ class QuotationForm(forms.ModelForm):
             "notes",
         )
         widgets = {
+            "customer": SearchableSelect(placeholder="Mijozni qidirish..."),
+            "contact": DependentContactSelect(),
             "valid_until": forms.DateInput(attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 4}),
         }
@@ -86,10 +89,13 @@ class QuotationForm(forms.ModelForm):
             self.add_error("lead", "Lead tanlangan mijozga tegishli emas.")
         if contact and customer and contact.company_id != customer.id:
             self.add_error("contact", "Kontakt tanlangan mijozga tegishli emas.")
-        if assigned_to and not assigned_to.memberships.filter(
-            organization=self.organization,
-            is_active=True,
-        ).exists():
+        if (
+            assigned_to
+            and not assigned_to.memberships.filter(
+                organization=self.organization,
+                is_active=True,
+            ).exists()
+        ):
             self.add_error("assigned_to", "Xodim bu korxonaga tegishli emas.")
         return cleaned_data
 
@@ -118,9 +124,9 @@ class QuotationLineForm(forms.ModelForm):
             product__is_active=True,
         ).select_related("product", "color", "size")
         self.fields["unit_price"].required = False
-        self.fields["unit_price"].help_text = (
-            "Bo'sh qoldirilsa, mahsulot katalogidagi amaldagi narx olinadi."
-        )
+        self.fields[
+            "unit_price"
+        ].help_text = "Bo'sh qoldirilsa, mahsulot katalogidagi amaldagi narx olinadi."
 
     def clean(self):
         cleaned_data = super().clean()
@@ -207,6 +213,28 @@ class QuotationDeliveryForm(forms.ModelForm):
             "status": "Yetkazish holati",
             "notes": "Izoh yoki mijoz javobi",
         }
+
+
+class QuotationEmailForm(forms.Form):
+    account = forms.ModelChoiceField(
+        label="Yuboruvchi email akkaunti",
+        queryset=MailboxAccount.objects.none(),
+    )
+    recipient = forms.EmailField(label="Qabul qiluvchi email")
+    subject = forms.CharField(label="Email mavzusi", max_length=255)
+    message = forms.CharField(
+        label="Email matni",
+        widget=forms.Textarea(attrs={"rows": 8}),
+    )
+    follow_up_at = forms.DateTimeField(
+        label="Keyingi bog'lanish vaqti",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        help_text="Email yuborilgach ushbu vaqtga avtomatik vazifa yaratiladi.",
+    )
+
+    def __init__(self, *args, accounts, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["account"].queryset = accounts
 
 
 class SalesOrderForm(forms.ModelForm):

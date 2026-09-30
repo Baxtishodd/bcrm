@@ -5,6 +5,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.common.pagination import paginate_queryset
 from apps.common.tenancy import organization_required
+from apps.crm.models import Activity
+from apps.crm.timeline import build_communication_timeline
+from apps.sales.models import QuotationDelivery
 
 from .forms import ContactForm, CustomerCompanyForm, CustomerListFilterForm
 from .models import CustomerCompany
@@ -104,10 +107,25 @@ def customer_detail(request, public_id):
         public_id=public_id,
         organization=request.organization,
     )
+    activities = Activity.objects.filter(
+        Q(customer=customer) | Q(lead__customer=customer),
+        organization=request.organization,
+    ).select_related("lead", "assigned_to")
+    deliveries = QuotationDelivery.objects.filter(
+        organization=request.organization,
+        quotation__customer=customer,
+    ).select_related("quotation", "sent_by")
     return render(
         request,
         "customers/detail.html",
-        {"customer": customer, "organization": request.organization},
+        {
+            "customer": customer,
+            "timeline": build_communication_timeline(
+                activities=activities.distinct(),
+                deliveries=deliveries,
+            ),
+            "organization": request.organization,
+        },
     )
 
 

@@ -58,7 +58,7 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07
 .message{border-radius:10px;padding:12px 14px;font-size:13px}
 .message-success{background:#dcfce7;color:#166534}
 .message-error{background:#ffe4e6;color:#9f1239}
-.form-panel{padding:24px}
+.form-panel{overflow:visible;padding:24px}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .form-field.full{grid-column:1/-1}
 .form-field label{display:block;font-size:12px;font-weight:800;color:#475569;margin-bottom:7px}
@@ -66,6 +66,20 @@ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07
 .form-field input[type=checkbox]{width:auto;margin-top:8px}
 .field-error,.form-errors{color:#be123c;font-size:12px;margin-top:6px}
 .form-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
+.form-actions .button[type=submit]{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:118px}
+.form-actions .button[type=submit]:disabled{cursor:wait;opacity:.72}
+.button-spinner{display:none;width:14px;height:14px;border:2px solid #ffffff80;border-top-color:#fff;border-radius:50%;animation:button-spin .7s linear infinite}
+form.is-submitting .button-spinner{display:inline-block}
+.form-submit-status{margin:10px 0 0;text-align:right;color:var(--muted);font-size:12px}
+@keyframes button-spin{to{transform:rotate(360deg)}}
+.smart-select{position:relative;min-width:0}
+.smart-select-native{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;opacity:0}
+.smart-select-input{padding-right:36px!important;background:#fff linear-gradient(45deg,transparent 50%,#64748b 50%) calc(100% - 17px) 50%/6px 6px no-repeat!important}
+.smart-select-input:disabled{background-color:#f1f5f9!important;color:#94a3b8;cursor:not-allowed}
+.smart-select-options{position:absolute;z-index:80;top:calc(100% + 6px);right:0;left:0;max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff;padding:5px;box-shadow:0 18px 45px #0f172a24}
+.smart-select-option{display:block;width:100%;border:0;border-radius:7px;background:#fff;padding:10px;text-align:left;color:var(--text);font:inherit;font-size:13px;cursor:pointer}
+.smart-select-option:hover,.smart-select-option:focus,.smart-select-option[aria-selected=true]{outline:0;background:var(--brand-soft);color:var(--brand)}
+.smart-select-empty{margin:0;padding:13px;color:var(--muted);font-size:12px;text-align:center}
 .detail-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(340px,.9fr);gap:18px}
 .detail-card{min-width:0}
 .details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;padding:8px 22px 22px}

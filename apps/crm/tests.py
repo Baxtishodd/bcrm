@@ -1,3 +1,4 @@
+import json
 from io import StringIO
 
 from django.core.management import call_command
@@ -6,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.customers.models import CustomerCompany
+from apps.customers.models import Contact, CustomerCompany
 from apps.organizations.models import Membership, Organization
 
 from .forms import LeadForm
@@ -98,6 +99,11 @@ class TaskFrontendTests(TestCase):
             organization=self.organization,
             name="Task customer",
         )
+        self.contact = Contact.objects.create(
+            organization=self.organization,
+            company=self.customer,
+            full_name="Task contact",
+        )
         self.open_stage = PipelineStage.objects.create(
             organization=self.organization,
             name="Muzokara",
@@ -167,6 +173,117 @@ class TaskFrontendTests(TestCase):
 
         self.assertContains(response, reverse("crm:list"))
         self.assertContains(response, "Ortga")
+
+    def test_lead_form_has_searchable_dependent_contact_select(self):
+        response = self.client.get(reverse("crm:create"))
+        form = response.context["form"]
+        contact_html = str(form["contact"])
+
+        self.assertEqual(form.fields["title"].label, "Lead nomi")
+        self.assertIn("data-smart-select", form.fields["customer"].widget.attrs)
+        self.assertEqual(
+            form.fields["contact"].widget.attrs["data-smart-select-depends-on"],
+            "customer",
+        )
+        self.assertIn(f'data-parent-value="{self.customer.pk}"', contact_html)
+        self.assertContains(response, "js/smart-select.js")
+
+    def test_lead_form_rejects_contact_from_another_customer(self):
+        other_customer = CustomerCompany.objects.create(
+            organization=self.organization,
+            name="Other customer",
+        )
+        other_contact = Contact.objects.create(
+            organization=self.organization,
+            company=other_customer,
+            full_name="Other contact",
+        )
+        form = LeadForm(
+            data={
+                "title": "Dependent contact test",
+                "business_direction": Lead.BusinessDirection.OTHER,
+                "customer": self.customer.pk,
+                "contact": other_contact.pk,
+                "stage": self.open_stage.pk,
+                "status": Lead.Status.NEW,
+                "priority": Lead.Priority.MEDIUM,
+                "source": "",
+                "estimated_value": "0",
+                "currency": "UZS",
+                "lost_reason": "",
+                "description": "",
+            },
+            organization=self.organization,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("contact", form.errors)
+
+    def test_lead_create_accepts_stage_from_current_organization(self):
+        response = self.client.post(
+            reverse("crm:create"),
+            {
+                "title": "Stage validation regression",
+                "business_direction": Lead.BusinessDirection.KNIT_FABRIC,
+                "customer": self.customer.pk,
+                "contact": self.contact.pk,
+                "stage": self.open_stage.pk,
+                "status": Lead.Status.IN_PROGRESS,
+                "priority": Lead.Priority.MEDIUM,
+                "source": "E2E test",
+                "estimated_value": "2900",
+                "currency": "USD",
+                "assigned_to": self.user.pk,
+                "lost_reason": "",
+                "description": "Regression test",
+            },
+        )
+
+        lead = Lead.objects.get(title="Stage validation regression")
+        self.assertRedirects(response, reverse("crm:detail", args=[lead.public_id]))
+        self.assertEqual(lead.organization, self.organization)
+        self.assertEqual(lead.stage, self.open_stage)
+
+    def test_lead_api_rejects_cross_tenant_relations(self):
+        other_organization = Organization.objects.create(
+            name="Other organization",
+            slug="other-api-organization",
+        )
+        other_customer = CustomerCompany.objects.create(
+            organization=other_organization,
+            name="Hidden API customer",
+        )
+        other_stage = PipelineStage.objects.create(
+            organization=other_organization,
+            name="Hidden API stage",
+        )
+
+        response = self.client.post(
+            "/api/v1/crm/leads/",
+            data=json.dumps(
+                {
+                    "title": "Cross tenant API attempt",
+                    "business_direction": Lead.BusinessDirection.KNIT_FABRIC,
+                    "customer": other_customer.pk,
+                    "stage": other_stage.pk,
+                    "status": Lead.Status.NEW,
+                    "priority": Lead.Priority.MEDIUM,
+                    "estimated_value": "100",
+                    "currency": "USD",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Lead.objects.filter(title="Cross tenant API attempt").exists())
+
+    def test_anonymous_user_cannot_access_leads_api(self):
+        self.client.logout()
+
+        response = self.client.get("/api/v1/crm/leads/")
+
+        self.assertIn(response.status_code, {401, 403})
 
     def test_lead_list_renders_reusable_kanban_component(self):
         response = self.client.get(reverse("crm:list"))

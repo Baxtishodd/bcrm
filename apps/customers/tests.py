@@ -2,7 +2,9 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.models import User
+from apps.crm.models import Activity, Lead
 from apps.organizations.models import Membership, Organization
+from apps.sales.models import Quotation, QuotationDelivery
 
 from .management.commands.import_customer_workbooks import merge_text, normalized_name
 from .models import CustomerCompany
@@ -137,6 +139,44 @@ class CustomerFrontendTests(TestCase):
         self.assertEqual(list(response.context["customers"]), [matching])
         self.assertEqual(response.context["per_page"], 50)
         self.assertIn("relationship_status=working", response.context["pagination_query"])
+
+    def test_customer_detail_combines_activities_and_deliveries_in_timeline(self):
+        customer = CustomerCompany.objects.create(
+            organization=self.organization,
+            name="Timeline customer",
+        )
+        lead = Lead.objects.create(
+            organization=self.organization,
+            customer=customer,
+            title="Timeline lead",
+        )
+        Activity.objects.create(
+            organization=self.organization,
+            lead=lead,
+            customer=customer,
+            activity_type=Activity.Type.CALL,
+            subject="Narxni muhokama qilish",
+        )
+        quotation = Quotation.objects.create(
+            organization=self.organization,
+            customer=customer,
+            lead=lead,
+            number="QT-TIMELINE",
+        )
+        QuotationDelivery.objects.create(
+            organization=self.organization,
+            quotation=quotation,
+            channel=QuotationDelivery.Channel.EMAIL,
+            recipient="buyer@example.com",
+            subject="Tijorat taklifi",
+        )
+
+        response = self.client.get(reverse("customers:detail", args=[customer.public_id]))
+
+        self.assertContains(response, "Aloqa tarixi")
+        self.assertContains(response, "Narxni muhokama qilish")
+        self.assertContains(response, "QT-TIMELINE")
+        self.assertContains(response, "buyer@example.com")
 
 
 class CustomerImportHelpersTests(TestCase):

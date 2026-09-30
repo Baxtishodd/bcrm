@@ -48,4 +48,11 @@
         </div>
     </article>
 </section>
+<section class="panel detail-card quotation-history">
+    <div class="panel-heading">
+        <div><p class="eyebrow">Timeline</p><h2>Aloqa tarixi</h2></div>
+        <a class="button" href="{% url 'tasks:create' %}">Vazifa qo'shish</a>
+    </div>
+    {% include "shared/communication_timeline.html" %}
+</section>
 {% endblock %}

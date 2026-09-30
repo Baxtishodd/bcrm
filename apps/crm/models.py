@@ -168,6 +168,15 @@ class Activity(OrganizationScopedModel):
 
     lead = models.ForeignKey(
         Lead,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="activities",
+    )
+    customer = models.ForeignKey(
+        "customers.CustomerCompany",
+        null=True,
+        blank=True,
         on_delete=models.CASCADE,
         related_name="activities",
     )

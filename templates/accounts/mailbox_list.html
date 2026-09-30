@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Email akkauntlari — BCRM{% endblock %}
+{% block heading %}Email akkauntlari{% endblock %}
+
+{% block content %}
+{% include "shared/page_navigation.html" with back_url="/" back_label="Boshqaruv paneliga qaytish" current_label="Email akkauntlari" %}
+<section class="panel">
+    <div class="panel-heading">
+        <div>
+            <p class="eyebrow">Shaxsiy pochta</p>
+            <h2>IMAP va SMTP sozlamalari</h2>
+        </div>
+        <a class="button" href="{% url 'accounts:mailbox-create' %}">Email ulash</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Email</th><th>SMTP</th><th>IMAP</th><th>Holat</th><th></th></tr></thead>
+            <tbody>
+            {% for account in accounts %}
+            <tr>
+                <td><strong>{{ account.email }}</strong><br><small>{{ account.display_name|default:account.username }}</small></td>
+                <td>{{ account.smtp_host }}:{{ account.smtp_port }} · {{ account.get_smtp_security_display }}</td>
+                <td>{{ account.imap_host }}:{{ account.imap_port }} · {{ account.get_imap_security_display }}</td>
+                <td>
+                    {% if account.is_active %}<span class="badge badge-success">Faol</span>{% else %}<span class="badge">Nofaol</span>{% endif %}
+                    {% if account.is_default %}<span class="badge">Asosiy</span>{% endif %}
+                    {% if account.last_tested_at %}<br><small>Tekshirildi: {{ account.last_tested_at|date:"d.m.Y H:i" }}</small>{% endif %}
+                    {% if account.last_tested_at %}
+                    <br>{% if account.smtp_is_verified %}<span class="badge badge-success">SMTP ishladi</span>{% else %}<span class="badge badge-danger">SMTP xato</span>{% endif %}
+                    {% if account.imap_is_verified %}<span class="badge badge-success">IMAP ishladi</span>{% else %}<span class="badge badge-danger">IMAP xato</span>{% endif %}
+                    {% endif %}
+                    {% if account.last_error %}<br><small class="field-error">{{ account.last_error|truncatechars:180|linebreaksbr }}</small>{% endif %}
+                </td>
+                <td>
+                    <div class="button-row">
+                        <a class="table-link" href="{% url 'accounts:mailbox-update' account.public_id %}">Sozlash</a>
+                        <form method="post" action="{% url 'accounts:mailbox-test' account.public_id %}">
+                            {% csrf_token %}<button class="link-button" type="submit">Ulanishni tekshirish</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="empty">Email akkaunti ulanmagan.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

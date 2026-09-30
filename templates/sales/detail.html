@@ -10,6 +10,7 @@
     <div class="panel-heading">
         <div><p class="eyebrow">{{ quotation.get_status_display }}</p><h2>{{ quotation.customer }}</h2></div>
         <div class="button-row">
+            <a class="button" href="{% url 'sales:email-send' quotation.public_id %}">Email yuborish</a>
             <a class="button" href="{% url 'sales:pdf' quotation.public_id %}">PDF yuklab olish</a>
             <a class="button button-secondary" href="{% url 'sales:document-edit' quotation.public_id %}">Hujjat muharriri</a>
             <a class="button button-secondary" target="_blank" href="{% url 'sales:print' quotation.public_id %}">Chop ko'rinishi</a>
@@ -67,19 +68,20 @@
     </div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Sana</th><th>Kanal</th><th>Qabul qiluvchi</th><th>Holat</th><th>Menejer</th><th>Izoh</th></tr></thead>
+            <thead><tr><th>Sana</th><th>Kanal</th><th>Yuboruvchi</th><th>Qabul qiluvchi</th><th>Holat</th><th>Menejer</th><th>Izoh</th></tr></thead>
             <tbody>
             {% for delivery in quotation.deliveries.all %}
             <tr>
                 <td>{{ delivery.sent_at|date:"d.m.Y H:i" }}</td>
                 <td>{{ delivery.get_channel_display }}</td>
+                <td>{{ delivery.sender|default:"—" }}</td>
                 <td>{{ delivery.recipient }}</td>
                 <td><span class="badge">{{ delivery.get_status_display }}</span></td>
                 <td>{% if delivery.sent_by %}{{ delivery.sent_by.get_full_name|default:delivery.sent_by.email }}{% else %}—{% endif %}</td>
-                <td>{{ delivery.notes|default:"—" }}</td>
+                <td>{% if delivery.subject %}<strong>{{ delivery.subject }}</strong><br>{% endif %}{{ delivery.notes|default:"—" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="empty">Taklif hali hech bir kanal orqali yuborilmagan.</td></tr>
+            <tr><td colspan="7" class="empty">Taklif hali hech bir kanal orqali yuborilmagan.</td></tr>
             {% endfor %}
             </tbody>
         </table>

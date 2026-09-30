@@ -26,3 +26,4 @@ class LeadAdmin(admin.ModelAdmin):
 
 
 admin.site.register(PipelineStage)
+admin.site.register(Activity)

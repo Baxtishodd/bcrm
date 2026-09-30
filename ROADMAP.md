@@ -61,28 +61,32 @@ oqimni tekshirish hamda kommunikatsiya va hisobotlar uchun poydevor yaratish.
 
 ### P0 — Mijoz va kontakt tanlashni yaxshilash
 
-- [ ] Lead formasida faqat tanlangan mijozga tegishli kontaktlarni ko'rsatish.
-- [ ] Katta mijozlar va kontaktlar ro'yxatida qidiriladigan tanlov qo'shish.
-- [ ] Taklif formasida ham mijozga bog'liq kontakt tanlovidan foydalanish.
-- [ ] Formadagi inglizcha maydon nomlarini o'zbekchalashtirish.
+- [x] Lead formasida faqat tanlangan mijozga tegishli kontaktlarni ko'rsatish.
+- [x] Katta mijozlar va kontaktlar ro'yxatida qidiriladigan tanlov qo'shish.
+- [x] Taklif formasida ham mijozga bog'liq kontakt tanlovidan foydalanish.
+- [x] Formadagi inglizcha maydon nomlarini o'zbekchalashtirish.
 
 **Tayyorlik mezoni:** noto'g'ri mijoz-kontakt juftligini saqlab bo'lmaydi va
 katta ro'yxatdan kerakli yozuv tez topiladi.
 
 ### P0 — To'liq savdo oqimini sinash
 
-- [ ] `Mijoz → Lead → Taklif → PDF → Buyurtma` oqimini brauzerda sinash.
-- [ ] Tenant chegarasi, noto'g'ri qiymatlar va ruxsatlarni test qilish.
-- [ ] Barcha Django va JavaScript tekshiruvlarini o'tkazish.
+- [x] `Mijoz → Lead → Taklif → PDF → Buyurtma` oqimini brauzerda sinash.
+- [x] Tenant chegarasi, noto'g'ri qiymatlar va ruxsatlarni test qilish.
+- [x] Barcha Django va JavaScript tekshiruvlarini o'tkazish.
 
 **Tayyorlik mezoni:** asosiy savdo oqimi xatosiz yakunlanadi, boshqa
 tashkilot ma'lumotiga kirib bo'lmaydi va avtomatik testlar muvaffaqiyatli o'tadi.
 
 ### P1 — Kommunikatsiya poydevori
 
-- [ ] Email orqali taklif yuborish va yuborilgan vaqtni qayd qilish.
-- [ ] Mijoz bilan aloqa tarixini yagona timeline'da ko'rsatish.
-- [ ] Yuborilgan taklif uchun avtomatik follow-up vazifasi yaratish.
+- [x] Email orqali taklif yuborish va yuborilgan vaqtni qayd qilish.
+- [x] Har bir sotuvchi uchun IMAP va SMTP sozlamalarini qo'lda kiritish.
+- [x] Email parolini shifrlab saqlash va ulanishni tekshirish.
+- [x] Taklifni sotuvchining tanlangan shaxsiy SMTP akkauntidan yuborish.
+- [x] Mijoz bilan aloqa tarixini yagona timeline'da ko'rsatish.
+- [x] Yuborilgan taklif uchun avtomatik follow-up vazifasi yaratish.
+- [ ] IMAP orqali kiruvchi xatlarni sinxronlash va Lead bilan bog'lash.
 - [ ] Telegram va WhatsApp integratsiyasining xavfsiz usulini aniqlash.
 
 **Tayyorlik mezoni:** sotuvchi kamida email yuborilishini CRM'da qayd etadi,
@@ -99,18 +103,20 @@ bitta sahifada ko'ra oladi.
 
 ### Kun yakuni
 
-- [ ] Ertangi sprint natijalarini brauzerda qayta tekshirish.
-- [ ] `ROADMAP.md` belgilari va keyingi ustuvor vazifalarni yangilash.
+- [x] Ertangi sprint natijalarini brauzerda qayta tekshirish.
+- [x] `ROADMAP.md` belgilari va keyingi ustuvor vazifalarni yangilash.
 - [ ] Alohida tasdiqdan keyin commit va GitHub'ga push qilish.
 
 ## Keyingi bosqichlar
 
 ### Savdo va kommunikatsiya
 
-- [ ] Email orqali taklif yuborish va yuborilgan vaqtni qayd qilish.
+- [x] Email orqali taklif yuborish va yuborilgan vaqtni qayd qilish.
+- [x] Sotuvchining shaxsiy IMAP va SMTP akkauntini xavfsiz ulash.
+- [ ] IMAP orqali kiruvchi javoblarni avtomatik sinxronlash.
 - [ ] Telegram va WhatsApp uchun xavfsiz integratsiya variantini tanlash.
-- [ ] Mijoz bilan barcha aloqalarni yagona timeline'da ko'rsatish.
-- [ ] Follow-up vazifalarini avtomatik yaratish.
+- [x] Mijoz bilan barcha aloqalarni yagona timeline'da ko'rsatish.
+- [x] Follow-up vazifalarini avtomatik yaratish.
 
 ### Mahsulot va narxlar
 

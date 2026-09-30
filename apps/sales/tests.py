@@ -1,18 +1,21 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from pypdf import PdfReader
 
-from apps.accounts.models import User
+from apps.accounts.models import MailboxAccount, User
 from apps.catalog.models import Color, Product, ProductVariant, Size
-from apps.crm.models import Lead, PipelineStage
+from apps.crm.models import Activity, Lead, PipelineStage
 from apps.customers.models import Contact, CustomerCompany
 from apps.organizations.models import Membership, Organization
 
+from .forms import QuotationForm, QuotationLineForm, SalesOrderForm
 from .models import (
     OrderLineVariant,
     Quotation,
@@ -35,9 +38,25 @@ class QuotationConversionTests(TestCase):
             user=self.user,
             role=Membership.Role.SALES,
         )
+        self.mailbox = MailboxAccount(
+            organization=self.organization,
+            user=self.user,
+            email="sales@example.com",
+            display_name="Sales Manager",
+            username="sales@example.com",
+            smtp_host="smtp.example.com",
+            smtp_port=587,
+            smtp_security=MailboxAccount.Security.STARTTLS,
+            imap_host="imap.example.com",
+            imap_port=993,
+            imap_security=MailboxAccount.Security.SSL,
+        )
+        self.mailbox.set_password("app-password")
+        self.mailbox.save()
         self.customer = CustomerCompany.objects.create(
             organization=self.organization,
             name="Buyer",
+            email="buyer@example.com",
         )
         self.product = Product.objects.create(
             organization=self.organization,
@@ -102,6 +121,101 @@ class QuotationConversionTests(TestCase):
         self.assertEqual(delivery.sent_by, self.user)
         self.assertEqual(delivery.channel, QuotationDelivery.Channel.TELEGRAM)
         self.assertEqual(self.quotation.status, Quotation.Status.SENT)
+
+    @patch("apps.sales.services.EmailMessage.send", return_value=1)
+    def test_email_send_attaches_pdf_logs_delivery_and_creates_follow_up(self, send):
+        response = self.client.post(
+            reverse("sales:email-send", args=[self.quotation.public_id]),
+            {
+                "account": self.mailbox.pk,
+                "recipient": "buyer@example.com",
+                "subject": "Test quotation",
+                "message": "Please find the quotation attached.",
+                "follow_up_at": "2026-10-03T10:00",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("sales:detail", args=[self.quotation.public_id]),
+        )
+        send.assert_called_once_with(fail_silently=False)
+        delivery = self.quotation.deliveries.get(channel=QuotationDelivery.Channel.EMAIL)
+        self.assertEqual(delivery.sender, "sales@example.com")
+        self.assertEqual(delivery.subject, "Test quotation")
+        self.assertEqual(delivery.message, "Please find the quotation attached.")
+        self.assertEqual(delivery.status, QuotationDelivery.Status.SENT)
+        follow_up = Activity.objects.get(customer=self.customer)
+        self.assertIsNone(follow_up.lead)
+        self.assertEqual(follow_up.activity_type, Activity.Type.TASK)
+        self.assertEqual(follow_up.assigned_to, self.user)
+        self.quotation.refresh_from_db()
+        self.assertEqual(self.quotation.status, Quotation.Status.SENT)
+
+    def test_email_form_has_duplicate_submit_guard(self):
+        response = self.client.get(
+            reverse("sales:email-send", args=[self.quotation.public_id])
+        )
+
+        self.assertContains(response, "data-submit-guard")
+        self.assertContains(response, "Yuborilmoqda...")
+        self.assertContains(response, "data-submit-status")
+
+    @patch("apps.sales.services.EmailMessage.send", side_effect=OSError("SMTP offline"))
+    def test_email_failure_is_logged_without_follow_up(self, _send):
+        response = self.client.post(
+            reverse("sales:email-send", args=[self.quotation.public_id]),
+            {
+                "account": self.mailbox.pk,
+                "recipient": "buyer@example.com",
+                "subject": "Test quotation",
+                "message": "Please find the quotation attached.",
+                "follow_up_at": "2026-10-03T10:00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Email yuborilmadi")
+        delivery = self.quotation.deliveries.get()
+        self.assertEqual(delivery.status, QuotationDelivery.Status.FAILED)
+        self.assertEqual(
+            delivery.notes,
+            "Email yuborilmadi. SMTP server bilan aloqa o'rnatilmadi.",
+        )
+        self.assertFalse(Activity.objects.filter(customer=self.customer).exists())
+
+    @patch("apps.sales.services.EmailMessage.send", return_value=1)
+    def test_email_form_rejects_another_users_mailbox(self, send):
+        other_user = User.objects.create_user(
+            email="other@example.com",
+            password="test-password",
+        )
+        other_mailbox = MailboxAccount(
+            organization=self.organization,
+            user=other_user,
+            email="other@example.com",
+            username="other@example.com",
+            smtp_host="smtp.example.com",
+            imap_host="imap.example.com",
+        )
+        other_mailbox.set_password("other-password")
+        other_mailbox.save()
+
+        response = self.client.post(
+            reverse("sales:email-send", args=[self.quotation.public_id]),
+            {
+                "account": other_mailbox.pk,
+                "recipient": "buyer@example.com",
+                "subject": "Hidden mailbox",
+                "message": "Must not send.",
+                "follow_up_at": "2026-10-03T10:00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("account", response.context["form"].errors)
+        send.assert_not_called()
+        self.assertFalse(self.quotation.deliveries.exists())
 
 
 class LeadQuotationWorkflowTests(TestCase):
@@ -201,6 +315,15 @@ class LeadQuotationWorkflowTests(TestCase):
         self.assertEqual(form.initial["currency"], "USD")
         self.assertTrue(form.fields["customer"].disabled)
         self.assertTrue(form.fields["lead"].disabled)
+        self.assertIn("data-smart-select", form.fields["customer"].widget.attrs)
+        self.assertEqual(
+            form.fields["contact"].widget.attrs["data-smart-select-depends-on"],
+            "customer",
+        )
+        self.assertIn(
+            f'data-parent-value="{self.customer.pk}"',
+            str(form["contact"]),
+        )
 
     def test_organization_sales_defaults_are_used_for_new_quotation(self):
         self.organization.default_delivery_terms = "FCA Koson"
@@ -270,6 +393,94 @@ class LeadQuotationWorkflowTests(TestCase):
         self.lead.refresh_from_db()
         self.assertEqual(self.lead.status, Lead.Status.WON)
         self.assertEqual(self.lead.stage, self.won_stage)
+
+    def test_complete_lead_quotation_pdf_order_flow(self):
+        self.create_quotation_from_lead()
+        quotation = Quotation.objects.get(lead=self.lead)
+        line_response = self.client.post(
+            reverse("sales:line-create", args=[quotation.public_id]),
+            {
+                "product": self.product.pk,
+                "variant": self.variant.pk,
+                "description": "E2E knitted fabric",
+                "quantity": "1000",
+                "unit_price": "3.25",
+            },
+        )
+        self.assertRedirects(
+            line_response,
+            reverse("sales:detail", args=[quotation.public_id]),
+        )
+
+        pdf_response = self.client.get(reverse("sales:pdf", args=[quotation.public_id]))
+        self.assertEqual(pdf_response.status_code, 200)
+        self.assertTrue(pdf_response.content.startswith(b"%PDF"))
+
+        convert_response = self.client.post(
+            reverse("sales:convert", args=[quotation.public_id]),
+        )
+        order = SalesOrder.objects.get(quotation=quotation)
+        self.assertRedirects(
+            convert_response,
+            reverse("sales:order-detail", args=[order.public_id]),
+        )
+        quotation.refresh_from_db()
+        self.lead.refresh_from_db()
+        self.assertEqual(quotation.status, Quotation.Status.ACCEPTED)
+        self.assertEqual(self.lead.status, Lead.Status.WON)
+        self.assertEqual(order.lines.get().quantity, Decimal("1000"))
+
+    def test_sales_forms_reject_invalid_financial_values(self):
+        quotation_form = QuotationForm(
+            data={
+                "customer": self.customer.pk,
+                "contact": self.contact.pk,
+                "lead": self.lead.pk,
+                "assigned_to": self.user.pk,
+                "status": Quotation.Status.DRAFT,
+                "currency": "USD",
+                "discount_percent": "-1",
+                "tax_percent": "101",
+                "delivery_terms": "FCA Koson",
+                "payment_terms": "Oldindan to'lov",
+                "notes": "",
+            },
+            organization=self.organization,
+        )
+        line_form = QuotationLineForm(
+            data={
+                "product": self.product.pk,
+                "variant": "",
+                "description": "Invalid values",
+                "quantity": "0",
+                "unit_price": "-0.01",
+            },
+            organization=self.organization,
+        )
+        order_form = SalesOrderForm(
+            data={
+                "customer": self.customer.pk,
+                "quotation": "",
+                "status": SalesOrder.Status.DRAFT,
+                "order_date": "2026-09-30",
+                "delivery_date": "",
+                "advance_amount": "-1",
+                "paid_amount": "-2",
+                "assigned_to": self.user.pk,
+                "notes": "",
+            },
+            organization=self.organization,
+        )
+
+        self.assertFalse(quotation_form.is_valid())
+        self.assertIn("discount_percent", quotation_form.errors)
+        self.assertIn("tax_percent", quotation_form.errors)
+        self.assertFalse(line_form.is_valid())
+        self.assertIn("quantity", line_form.errors)
+        self.assertIn("unit_price", line_form.errors)
+        self.assertFalse(order_form.is_valid())
+        self.assertIn("advance_amount", order_form.errors)
+        self.assertIn("paid_amount", order_form.errors)
 
     def test_won_lead_shows_order_action_then_link(self):
         self.create_quotation_from_lead()
@@ -380,6 +591,10 @@ class LeadQuotationWorkflowTests(TestCase):
         quotation = Quotation.objects.get(lead=self.lead)
         quotation.document_intro = "Hurmatli hamkor, tijorat taklifimizni yuboramiz."
         quotation.save()
+        Quotation.objects.filter(pk=quotation.pk).update(
+            created_at=datetime(2026, 9, 29, 20, 0, tzinfo=datetime_timezone.utc),
+        )
+        quotation.refresh_from_db()
         QuotationLine.objects.create(
             organization=self.organization,
             quotation=quotation,
@@ -400,6 +615,7 @@ class LeadQuotationWorkflowTests(TestCase):
         reader = PdfReader(BytesIO(response.content))
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
         self.assertIn("TIJORAT TAKLIFI", text)
+        self.assertIn("30.09.2026", text)
         self.assertIn(self.customer.name, text)
         self.assertIn(self.product.article, text)
         self.assertIn("100% paxta trikotaj mato", text)
@@ -420,9 +636,40 @@ class LeadQuotationWorkflowTests(TestCase):
             customer=other_customer,
             created_by=other_user,
         )
+        hidden_order = SalesOrder.objects.create(
+            organization=other_org,
+            number="HIDDEN-SO-1",
+            customer=other_customer,
+            quotation=hidden,
+            order_date=timezone.localdate(),
+            created_by=other_user,
+        )
 
-        editor_response = self.client.get(reverse("sales:document-edit", args=[hidden.public_id]))
-        pdf_response = self.client.get(reverse("sales:pdf", args=[hidden.public_id]))
-
-        self.assertEqual(editor_response.status_code, 404)
-        self.assertEqual(pdf_response.status_code, 404)
+        quotation_urls = (
+            reverse("sales:detail", args=[hidden.public_id]),
+            reverse("sales:update", args=[hidden.public_id]),
+            reverse("sales:line-create", args=[hidden.public_id]),
+            reverse("sales:delivery-create", args=[hidden.public_id]),
+            reverse("sales:email-send", args=[hidden.public_id]),
+            reverse("sales:document-edit", args=[hidden.public_id]),
+            reverse("sales:pdf", args=[hidden.public_id]),
+        )
+        for url in quotation_urls:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(
+            self.client.post(reverse("sales:convert", args=[hidden.public_id])).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("sales:order-detail", args=[hidden_order.public_id])
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("sales:order-update", args=[hidden_order.public_id])
+            ).status_code,
+            404,
+        )
