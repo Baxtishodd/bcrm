@@ -42,12 +42,17 @@
     <div class="table-wrap">
         <table>
             <thead>
-                <tr><th>Mahsulot</th><th>Texnik tavsif</th><th>Miqdor</th><th>Narx</th><th>Yuklash</th><th>Minimal buyurtma</th></tr>
+                <tr><th>Mahsulot</th>{% if offer.document_type == 'product_list' and offer.category == 'apparel' %}<th>Rasm</th><th>Rang</th><th>O'lcham</th>{% endif %}<th>Texnik tavsif</th><th>Miqdor</th><th>Narx</th><th>Yuklash</th><th>Minimal buyurtma</th></tr>
             </thead>
             <tbody>
             {% for line in offer.lines.all %}
                 <tr>
                     <td><a class="table-link" href="{% url 'catalog:detail' line.product.public_id %}">{{ line.product }}</a></td>
+                    {% if offer.document_type == 'product_list' and offer.category == 'apparel' %}
+                    <td>{% if line.image %}<img class="document-line-thumb" src="{{ line.image.url }}" alt="{{ line.product.name }}">{% elif line.product.image %}<img class="document-line-thumb" src="{{ line.product.image.url }}" alt="{{ line.product.name }}">{% else %}—{% endif %}</td>
+                    <td>{{ line.color|default:"—" }}</td>
+                    <td>{{ line.size|default:"—" }}</td>
+                    {% endif %}
                     <td>{{ line.description_snapshot|default:line.product.description|default:"—"|linebreaksbr }}</td>
                     <td>{% if line.available_quantity != None %}{{ line.available_quantity }} {{ line.get_unit_display }}{% else %}—{% endif %}</td>
                     <td>{% if line.unit_price != None %}{{ line.unit_price }} {{ offer.currency }}/{{ line.unit }}{% else %}—{% endif %}</td>
@@ -55,7 +60,7 @@
                     <td>{% if line.minimum_order_quantity != None %}{{ line.minimum_order_quantity }} {{ line.get_unit_display }}{% else %}—{% endif %}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="6" class="empty">Hujjatga mahsulotlar hali qo'shilmagan.</td></tr>
+                <tr><td colspan="9" class="empty">Hujjatga mahsulotlar hali qo'shilmagan.</td></tr>
             {% endfor %}
             </tbody>
         </table>

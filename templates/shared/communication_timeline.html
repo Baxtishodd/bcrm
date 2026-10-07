@@ -1,7 +1,13 @@
 <div class="stack-list communication-timeline">
     {% for event in timeline %}
     <div class="stack-item">
-        {% if event.kind == "delivery" %}
+        {% if event.kind == "message" %}
+        <strong>{{ event.message.conversation.display_title }} — {{ event.message.conversation.get_channel_display }}</strong>
+        <span>{{ event.message.get_direction_display }} · {{ event.message.get_status_display }}</span>
+        {% if event.message.body %}<small>{{ event.message.body|truncatechars:180 }}</small>{% else %}<small>Biriktirilgan fayl</small>{% endif %}
+        <small>{{ event.occurred_at|date:"d.m.Y H:i" }}{% if event.message.sender_name %} · {{ event.message.sender_name }}{% endif %}</small>
+        <a class="table-link" href="{% url 'communications:conversation' event.message.conversation.public_id %}">Suhbatni ochish</a>
+        {% elif event.kind == "delivery" %}
         <strong>{{ event.delivery.quotation.number }} — {{ event.delivery.get_channel_display }}</strong>
         <span>{{ event.delivery.recipient }} · {{ event.delivery.get_status_display }}</span>
         {% if event.delivery.subject %}<small>{{ event.delivery.subject }}</small>{% endif %}

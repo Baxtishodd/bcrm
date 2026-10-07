@@ -334,6 +334,11 @@ def build_price_list_pdf(price_list):
     ]]
     for index, line in enumerate(price_list.lines.all(), start=1):
         product_text = f"<b>{escape(line.product.name)}</b>"
+        if line.color or line.size:
+            variant_text = " / ".join(
+                escape(str(value)) for value in (line.color, line.size) if value
+            )
+            product_text += f"<br/><font color='#0F766E'>{variant_text}</font>"
         specification = _product_specification(line.product)
         if specification:
             product_text += f"<br/><font color='#64748B'>{escape(specification)}</font>"
@@ -347,10 +352,14 @@ def build_price_list_pdf(price_list):
             value_text = _number(value, 4 if is_price_list else 3)
             if is_price_list:
                 value_text = f"{value_text} {price_list.currency}"
+        product_cell = Paragraph(product_text, table_text)
+        line_image = _image(line.image or line.product.image, 18 * mm, 18 * mm)
+        if line_image:
+            product_cell = [line_image, product_cell]
         rows.append([
             _paragraph(index, table_number),
             _paragraph(line.product.article, table_text),
-            Paragraph(product_text, table_text),
+            product_cell,
             _paragraph(
                 _number(line.available_quantity, 3)
                 if line.available_quantity is not None else "-",

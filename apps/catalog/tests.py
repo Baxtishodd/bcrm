@@ -355,6 +355,11 @@ class PriceListTests(TestCase):
             },
         )
 
+        self.assertEqual(
+            response.status_code,
+            302,
+            response.context["line_formset"].errors if response.context else response.content,
+        )
         self.assertRedirects(
             response,
             reverse("catalog:offer-document-edit", args=[offer.public_id]),
@@ -366,6 +371,135 @@ class PriceListTests(TestCase):
         self.assertEqual(offer.document_intro, "Dear partner")
         self.assertEqual(line.unit_price, Decimal("2.5500"))
         self.assertEqual(line.minimum_order_quantity, Decimal("1000.000"))
+
+    def test_apparel_product_list_saves_color_size_and_image(self):
+        product = Product.objects.create(
+            organization=self.organization,
+            article="TSHIRT-01",
+            name="Basic T-shirt",
+            category=Product.Category.APPAREL,
+            unit=Product.Unit.PIECE,
+        )
+        offer = PriceList.objects.create(
+            organization=self.organization,
+            number="PL-APPAREL",
+            document_type=PriceList.DocumentType.PRODUCT_LIST,
+            category=Product.Category.APPAREL,
+        )
+        image_output = BytesIO()
+        Image.new("RGB", (800, 600), color=(20, 30, 40)).save(image_output, "WEBP")
+        image_output.seek(0)
+        upload = SimpleUploadedFile(
+            "tshirt.webp",
+            image_output.getvalue(),
+            content_type="image/webp",
+        )
+
+        response = self.client.post(
+            reverse("catalog:offer-document-edit", args=[offer.public_id]),
+            {
+                "number": offer.number,
+                "version": "1",
+                "document_type": PriceList.DocumentType.PRODUCT_LIST,
+                "title": "Kiyim katalogi",
+                "category": Product.Category.APPAREL,
+                "issue_date": timezone.localdate().isoformat(),
+                "currency": "USD",
+                "incoterm": "FCA",
+                "delivery_place": "Koson, UZB",
+                "incoterms_version": "2020",
+                "language": PriceList.Language.UZ,
+                "status": PriceList.Status.DRAFT,
+                "lines-TOTAL_FORMS": "1",
+                "lines-INITIAL_FORMS": "0",
+                "lines-MIN_NUM_FORMS": "0",
+                "lines-MAX_NUM_FORMS": "1000",
+                "lines-0-product": str(product.id),
+                "lines-0-color": "Qora",
+                "lines-0-size": "L",
+                "lines-0-description_snapshot": "Paxtali futbolka",
+                "lines-0-available_quantity": "100",
+                "lines-0-unit": Product.Unit.PIECE,
+                "lines-0-sort_order": "1",
+                "lines-0-image": upload,
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            302,
+            response.context["line_formset"].errors if response.context else response.content,
+        )
+        self.assertRedirects(
+            response,
+            reverse("catalog:offer-document-edit", args=[offer.public_id]),
+        )
+        line = offer.lines.get()
+        self.assertEqual(line.color, "Qora")
+        self.assertEqual(line.size, "L")
+        self.assertTrue(line.image.name.startswith("images/pricelistline/"))
+
+    def test_apparel_product_list_requires_color_and_size(self):
+        product = Product.objects.create(
+            organization=self.organization,
+            article="HOODIE-01",
+            name="Hoodie",
+            category=Product.Category.APPAREL,
+            unit=Product.Unit.PIECE,
+        )
+        offer = PriceList.objects.create(
+            organization=self.organization,
+            number="PL-REQUIRED",
+            document_type=PriceList.DocumentType.PRODUCT_LIST,
+            category=Product.Category.APPAREL,
+        )
+
+        line = PriceListLine(
+            organization=self.organization,
+            price_list=offer,
+            product=product,
+            unit=Product.Unit.PIECE,
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            line.full_clean()
+        self.assertIn("color", context.exception.message_dict)
+        self.assertIn("size", context.exception.message_dict)
+
+    def test_apparel_product_list_allows_multiple_color_size_rows(self):
+        product = Product.objects.create(
+            organization=self.organization,
+            article="POLO-01",
+            name="Polo",
+            category=Product.Category.APPAREL,
+            unit=Product.Unit.PIECE,
+        )
+        offer = PriceList.objects.create(
+            organization=self.organization,
+            number="PL-MATRIX",
+            document_type=PriceList.DocumentType.PRODUCT_LIST,
+            category=Product.Category.APPAREL,
+        )
+
+        for color, size in (("Qora", "M"), ("Qora", "L"), ("Oq", "M")):
+            line = PriceListLine(
+                organization=self.organization,
+                price_list=offer,
+                product=product,
+                color=color,
+                size=size,
+                unit=Product.Unit.PIECE,
+            )
+            line.full_clean()
+            line.save()
+
+        self.assertEqual(offer.lines.count(), 3)
+
+    def test_product_form_uses_shared_image_editor(self):
+        response = self.client.get(reverse("catalog:create"))
+
+        self.assertContains(response, 'data-image-editor="true"')
+        self.assertContains(response, 'data-image-editor-aspect="4/3"')
 
     def test_offer_pdf_contains_company_and_product_details(self):
         product = Product.objects.create(

@@ -54,6 +54,7 @@ urlpatterns = [
     path("customers/", include("apps.customers.urls")),
     path("leads/", include("apps.crm.urls")),
     path("tasks/", include("apps.crm.task_urls")),
+    path("messages/", include("apps.communications.urls")),
     path("catalog/", include("apps.catalog.urls")),
     path("sales/", include("apps.sales.urls")),
     path("organization/", include("apps.organizations.urls")),

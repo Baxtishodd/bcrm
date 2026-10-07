@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Xabarlar · BCRM{% endblock %}
+{% block heading %}Xabarlar{% endblock %}
+
+{% block content %}
+<section class="message-inbox" aria-label="Xabarlar markazi" data-sync-url="{% url 'communications:sync' %}"{% if selected_conversation %} data-conversation-id="{{ selected_conversation.public_id }}"{% endif %}>
+    <aside class="conversation-pane">
+        <div class="conversation-pane-heading">
+            <div>
+                <p class="eyebrow">Barcha kanallar</p>
+                <h2>Suhbatlar</h2>
+            </div>
+            <div class="conversation-heading-actions">
+                <a class="button button-secondary email-compose-link" href="{% url 'communications:email-compose' %}">
+                    {% include "shared/icon.html" with name="email" %}<span>Email yozish</span>
+                </a>
+                <a class="button button-primary button-icon" href="{% url 'communications:create' %}" aria-label="Yangi ichki suhbat" title="Yangi ichki suhbat">
+                    {% include "shared/icon.html" with name="plus" %}
+                </a>
+            </div>
+        </div>
+        <form class="conversation-filters" method="get">
+            <label class="conversation-search">
+                {% include "shared/icon.html" with name="search" %}
+                <input type="search" name="q" value="{{ query }}" placeholder="Suhbat yoki xabarni qidirish">
+            </label>
+            <select name="channel" aria-label="Kanal" onchange="this.form.submit()">
+                <option value="">Barcha kanallar</option>
+                {% for value, label in channel_choices %}
+                <option value="{{ value }}"{% if selected_channel == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {% if mailboxes %}
+            <select name="mailbox" aria-label="Mailbox" onchange="this.form.submit()">
+                <option value="">Barcha mailboxlar</option>
+                {% for mailbox in mailboxes %}
+                <option value="{{ mailbox.public_id }}"{% if selected_mailbox == mailbox.public_id|stringformat:'s' %} selected{% endif %}>{{ mailbox.email }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </form>
+        <div class="conversation-list">
+            {% include "communications/_conversation_list.html" %}
+        </div>
+    </aside>
+
+    <div class="chat-pane">
+        {% if selected_conversation %}
+        <header class="chat-header">
+            <div class="chat-person">
+                {% if selected_conversation.telegram_avatar %}
+                <img class="conversation-avatar conversation-avatar-large conversation-avatar-image" src="{{ selected_conversation.telegram_avatar.url }}" alt="{{ selected_conversation.display_title }}">
+                {% else %}
+                <span class="conversation-avatar conversation-avatar-large">{{ selected_conversation.display_title|first|upper }}</span>
+                {% endif %}
+                <div>
+                    <h2 title="{{ selected_conversation.display_title }}">{{ selected_conversation.display_title }}</h2>
+                    <p>{{ selected_conversation.get_channel_display }} · {{ selected_conversation.get_status_display }}{% if selected_conversation.assigned_to %} · {{ selected_conversation.assigned_to.get_full_name|default:selected_conversation.assigned_to.email }}{% endif %}</p>
+                    {% if selected_conversation.channel == "email" %}
+                    <p class="chat-email-addresses">
+                        {% if selected_conversation.external_chat_id %}<span>Mijoz: {{ selected_conversation.external_chat_id }}</span>{% endif %}
+                        {% if selected_conversation.mailbox %}<span>Mailbox: {{ selected_conversation.mailbox.email }}</span>{% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            <nav class="chat-links" aria-label="Bog'langan obyektlar">
+                {% if selected_conversation.contact %}<a href="{% url 'customers:contact-detail' selected_conversation.contact.public_id %}">Kontakt</a>{% endif %}
+                {% if selected_conversation.customer %}<a href="{% url 'customers:detail' selected_conversation.customer.public_id %}">Mijoz</a>{% endif %}
+                {% if selected_conversation.lead %}<a href="{% url 'crm:detail' selected_conversation.lead.public_id %}">Lead</a>{% endif %}
+            </nav>
+        </header>
+
+        <div class="chat-messages" aria-live="polite">
+            {% include "communications/_message_items.html" with message_items=selected_conversation.messages.all show_empty=True %}
+        </div>
+
+        {% if selected_conversation.status == "open" %}
+        <form class="chat-composer" method="post" action="{% url 'communications:send' selected_conversation.public_id %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label class="attachment-button" title="Fayl biriktirish">
+                <span aria-hidden="true">＋</span>
+                {{ compose_form.attachment }}
+            </label>
+            {{ compose_form.body }}
+            <button class="button button-primary" type="submit">Yuborish</button>
+        </form>
+        {% if selected_conversation.channel == "telegram" and not telegram_enabled %}
+        <p class="integration-note">Telegram bot tokeni sozlanmagan.</p>
+        {% elif selected_conversation.channel != "internal" and selected_conversation.channel != "telegram" and selected_conversation.channel != "email" %}
+        <p class="integration-note">Bu kanal hali ulanmagan. Yozilgan xabar yuborish navbatiga saqlanadi.</p>
+        {% endif %}
+        {% else %}
+        <p class="closed-conversation-note">Bu suhbat {{ selected_conversation.get_status_display|lower }}.</p>
+        {% endif %}
+        {% else %}
+        <div class="chat-placeholder">
+            {% include "shared/icon.html" with name="messages" %}
+            <h2>Xabarlar markazi</h2>
+            <p>Suhbatni tanlang yoki yangi suhbat yarating.</p>
+            <div class="chat-placeholder-actions">
+                <a class="button button-primary" href="{% url 'communications:email-compose' %}">Email yozish</a>
+                <a class="button button-secondary" href="{% url 'communications:create' %}">Ichki suhbat</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+{% load static %}
+<script src="{% static 'js/chat.js' %}?v=20261008-1" defer></script>
+{% endblock %}

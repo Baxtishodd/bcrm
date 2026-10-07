@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}BCRM{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261005-3">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261008-3">
 </head>
 <body>
 {% include "shared/icon_sprite.html" %}
@@ -36,6 +36,10 @@
                href="{% url 'customers:contact-list' %}">{% include "shared/icon.html" with name="contacts" %}<span>Kontaktlar</span></a>
             <a{% if request.resolver_match.namespace == 'crm' %} class="active" aria-current="page"{% endif %}
                href="{% url 'crm:list' %}">{% include "shared/icon.html" with name="leads" %}<span>Leadlar</span></a>
+            {% if request.crm_permissions.manage_mailbox %}
+            <a{% if request.resolver_match.namespace == 'communications' %} class="active" aria-current="page"{% endif %}
+               href="{% url 'communications:inbox' %}">{% include "shared/icon.html" with name="messages" %}<span>Xabarlar</span></a>
+            {% endif %}
             <a{% if request.resolver_match.namespace == 'tasks' %} class="active" aria-current="page"{% endif %}
                href="{% url 'tasks:list' %}">{% include "shared/icon.html" with name="tasks" %}<span>Vazifalar</span></a>
             <a{% if request.resolver_match.namespace == 'catalog' %} class="active" aria-current="page"{% endif %}
@@ -90,7 +94,7 @@
     <script src="{% static 'js/smart-select.js' %}?v=20260930-4" defer></script>
     <script src="{% static 'js/form-submit.js' %}?v=20260930-1" defer></script>
     <script src="{% static 'js/view-switcher.js' %}?v=20261003-1" defer></script>
-    <script src="{% static 'js/avatar-editor.js' %}?v=20261003-2" defer></script>
+    <script src="{% static 'js/avatar-editor.js' %}?v=20261007-1" defer></script>
     <script src="{% static 'js/sidebar.js' %}?v=20261005-1" defer></script>
 {% block extra_scripts %}{% endblock %}
 </body>

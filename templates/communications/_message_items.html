@@ -1,0 +1,35 @@
+{% for item in message_items %}
+<article class="chat-message chat-message-{{ item.direction }}" data-message-id="{{ item.id }}">
+    <div class="chat-bubble">
+        {% if item.sender_name %}<strong>{{ item.sender_name }}</strong>{% endif %}
+        {% if item.email_from and item.email_from != item.sender_name %}
+        <small class="message-sender-email">{{ item.email_from }}</small>
+        {% endif %}
+        {% if item.email_subject %}<small class="email-message-subject" title="{{ item.email_subject }}">{{ item.email_subject }}</small>{% endif %}
+        {% if item.body %}<p>{{ item.body|linebreaksbr }}</p>{% endif %}
+        {% for attachment in item.attachments.all %}
+        {% if attachment.kind == "image" %}
+        <a class="message-image" href="{{ attachment.file.url }}" target="_blank" rel="noopener">
+            <img src="{{ attachment.file.url }}" alt="{{ attachment.original_name }}">
+        </a>
+        {% else %}
+        <a class="message-file" href="{{ attachment.file.url }}" target="_blank" rel="noopener" download>
+            {% include "shared/icon.html" with name="download" %}
+            <span>{{ attachment.original_name }}<small>{{ attachment.size|filesizeformat }}</small></span>
+        </a>
+        {% endif %}
+        {% endfor %}
+        <footer>
+            <time datetime="{{ item.sent_at|date:'c' }}">{{ item.sent_at|date:"d.m.Y H:i" }}</time>
+            <span title="{{ item.get_status_display }}">{% if item.status == "read" %}✓✓{% elif item.direction == "outbound" %}✓{% endif %}</span>
+        </footer>
+    </div>
+</article>
+{% empty %}
+{% if show_empty %}
+<div class="chat-empty">
+    <strong>Suhbat boshlandi</strong>
+    <p>Birinchi xabarni quyidagi maydonda yozing.</p>
+</div>
+{% endif %}
+{% endfor %}

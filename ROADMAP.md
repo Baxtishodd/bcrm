@@ -164,11 +164,16 @@ barcha aloqa tarixi yagona profilda ko'rinadi.
 - [ ] Telegram va WhatsApp uchun xavfsiz integratsiya variantini tanlash.
 - [x] Mijoz bilan barcha aloqalarni yagona timeline'da ko'rsatish.
 - [x] Follow-up vazifalarini avtomatik yaratish.
+- [ ] Ichki chatni mijozlar uchun Xabarlar markazidan ajratib, alohida
+  "Jamoa chatlari" bo'limiga ko'chirish va Xabarlar sahifasidagi chalkash
+  yangi suhbat tugmasini olib tashlash.
+- [ ] Mutlaq real-time yangilanishlar uchun Django Channels, WebSocket va Redis
+  infratuzilmasiga o'tish.
 
 ### Mahsulot va narxlar
 
 - [x] Price-list va product-list uchun logotipli PDF hamda hujjat muharriri.
-- [ ] Tayyor kiyim-kechak kategoriyasi va o'lcham/rang matritsasini yakunlash.
+- [x] Tayyor kiyim-kechak kategoriyasi va Product List'da o'lcham/rang matritsasini yakunlash.
 - [ ] Price-list versiyalari va amal qilish muddatlarini boshqarish.
 - [ ] Mijoz, bozor va hajm bo'yicha individual narx qoidalarini qo'shish.
 - [ ] Ombor qoldig'i va ishlab chiqarish muddati bilan integratsiya qilish.

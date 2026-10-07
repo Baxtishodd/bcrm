@@ -1,0 +1,32 @@
+{% for conversation in conversations %}
+<a class="conversation-item{% if selected_conversation.pk == conversation.pk %} active{% endif %}" href="{% url 'communications:conversation' conversation.public_id %}" data-conversation-id="{{ conversation.public_id }}">
+    {% if conversation.telegram_avatar %}
+    <img class="conversation-avatar conversation-avatar-image" src="{{ conversation.telegram_avatar.url }}" alt="{{ conversation.display_title }}">
+    {% else %}
+    <span class="conversation-avatar">{{ conversation.display_title|first|upper }}</span>
+    {% endif %}
+    <span class="conversation-summary">
+        <span class="conversation-row">
+            <strong title="{{ conversation.display_title }}">{{ conversation.display_title }}</strong>
+            <time>{{ conversation.last_message_at|date:"H:i" }}</time>
+        </span>
+        <span class="conversation-row">
+            <small class="conversation-preview">
+                {% if conversation.last_message_at %}{{ conversation.latest_message_body|default:"Fayl"|truncatechars:42 }}{% else %}Xabarlar hali yo'q{% endif %}
+            </small>
+            {% if conversation.unread_count %}<span class="unread-count">{{ conversation.unread_count }}</span>{% endif %}
+        </span>
+        <span class="conversation-meta">
+            <span class="channel-label channel-{{ conversation.channel }}">{{ conversation.get_channel_display }}</span>
+            {% if conversation.channel == "email" and conversation.external_chat_id %}
+            <small class="conversation-email" title="{{ conversation.external_chat_id }}">{{ conversation.external_chat_id }}</small>
+            {% endif %}
+        </span>
+    </span>
+</a>
+{% empty %}
+<div class="conversation-empty">
+    <strong>Suhbat topilmadi</strong>
+    <p>Yangi suhbat oching yoki qidiruv filtrini tozalang.</p>
+</div>
+{% endfor %}

@@ -344,6 +344,9 @@ class PriceListLine(OrganizationScopedModel):
         on_delete=models.PROTECT,
         related_name="price_list_lines",
     )
+    color = models.CharField(max_length=100, blank=True)
+    size = models.CharField(max_length=40, blank=True)
+    image = OptimizedImageField(blank=True)
     description_snapshot = models.TextField(blank=True)
     available_quantity = models.DecimalField(
         max_digits=16,
@@ -374,8 +377,8 @@ class PriceListLine(OrganizationScopedModel):
         ordering = ["sort_order", "id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["organization", "price_list", "product"],
-                name="uniq_catalog_price_list_product",
+                fields=["organization", "price_list", "product", "color", "size"],
+                name="uniq_catalog_price_list_product_variant",
             )
         ]
 
@@ -385,6 +388,32 @@ class PriceListLine(OrganizationScopedModel):
             raise ValidationError("Price-list boshqa tashkilotga tegishli.")
         if self.product_id and self.organization_id != self.product.organization_id:
             raise ValidationError("Mahsulot boshqa tashkilotga tegishli.")
+        if self.organization_id and self.price_list_id and self.product_id:
+            duplicate = type(self).objects.filter(
+                organization_id=self.organization_id,
+                price_list_id=self.price_list_id,
+                product_id=self.product_id,
+                color=self.color,
+                size=self.size,
+            )
+            if self.pk:
+                duplicate = duplicate.exclude(pk=self.pk)
+            if duplicate.exists():
+                raise ValidationError(
+                    "Bu mahsulot, rang va o'lcham kombinatsiyasi hujjatda mavjud."
+                )
+        if (
+            self.price_list_id
+            and self.price_list.document_type == PriceList.DocumentType.PRODUCT_LIST
+            and self.price_list.category == Product.Category.APPAREL
+        ):
+            apparel_errors = {}
+            if not self.color.strip():
+                apparel_errors["color"] = "Tayyor kiyim uchun rangni kiriting."
+            if not self.size.strip():
+                apparel_errors["size"] = "Tayyor kiyim uchun o'lchamni kiriting."
+            if apparel_errors:
+                raise ValidationError(apparel_errors)
 
     def __str__(self):
         return f"{self.price_list.number} / {self.product.article}"

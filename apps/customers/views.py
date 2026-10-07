@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.common.pagination import paginate_queryset
 from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
+from apps.communications.models import Message
 from apps.crm.models import Activity
 from apps.crm.timeline import build_communication_timeline
 from apps.sales.models import QuotationDelivery
@@ -126,6 +127,12 @@ def customer_detail(request, public_id):
         organization=request.organization,
         quotation__customer=customer,
     ).select_related("quotation", "sent_by")
+    communication_messages = Message.objects.filter(
+        Q(conversation__customer=customer)
+        | Q(conversation__lead__customer=customer)
+        | Q(conversation__contact__company=customer),
+        organization=request.organization,
+    ).select_related("conversation", "sender")
     return render(
         request,
         "customers/detail.html",
@@ -134,6 +141,7 @@ def customer_detail(request, public_id):
             "timeline": build_communication_timeline(
                 activities=activities.distinct(),
                 deliveries=deliveries,
+                messages=communication_messages.distinct(),
             ),
             "organization": request.organization,
         },
@@ -280,6 +288,10 @@ def contact_detail(request, public_id):
         organization=request.organization,
         quotation__contact=contact,
     ).select_related("quotation", "sent_by")
+    communication_messages = Message.objects.filter(
+        Q(conversation__contact=contact) | Q(conversation__lead__contact=contact),
+        organization=request.organization,
+    ).select_related("conversation", "sender")
     return render(
         request,
         "customers/contact_detail.html",
@@ -289,6 +301,7 @@ def contact_detail(request, public_id):
             "timeline": build_communication_timeline(
                 activities=activities.distinct(),
                 deliveries=deliveries,
+                messages=communication_messages.distinct(),
             ),
             "organization": request.organization,
         },

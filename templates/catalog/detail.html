@@ -65,6 +65,7 @@
         {% endwith %}
         {% endif %}
     </article>
+    {% if product.category != 'apparel' %}
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">SKU</p><h2>Rang-o'lcham variantlari</h2></div>
@@ -83,5 +84,11 @@
             </table>
         </div>
     </article>
+    {% else %}
+    <article class="panel detail-card">
+        <div class="panel-heading"><div><p class="eyebrow">Tayyor kiyim</p><h2>Rang va o'lchamlar</h2></div></div>
+        <p class="empty">Rang, o'lcham va katalog rasmi Product List hujjatini tuzishda kiritiladi.</p>
+    </article>
+    {% endif %}
 </section>
 {% endblock %}

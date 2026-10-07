@@ -51,6 +51,19 @@ class ProductAdmin(admin.ModelAdmin):
 class PriceListLineInline(admin.TabularInline):
     model = PriceListLine
     extra = 0
+    fields = (
+        "product",
+        "color",
+        "size",
+        "image",
+        "description_snapshot",
+        "available_quantity",
+        "unit",
+        "unit_price",
+        "minimum_order_quantity",
+        "planned_loading_date",
+        "sort_order",
+    )
 
 
 @admin.register(PriceList)

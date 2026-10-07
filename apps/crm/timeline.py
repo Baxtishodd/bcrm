@@ -1,4 +1,4 @@
-def build_communication_timeline(*, activities=(), deliveries=()):
+def build_communication_timeline(*, activities=(), deliveries=(), messages=()):
     events = []
     for activity in activities:
         events.append(
@@ -14,6 +14,14 @@ def build_communication_timeline(*, activities=(), deliveries=()):
                 "kind": "delivery",
                 "occurred_at": delivery.sent_at,
                 "delivery": delivery,
+            }
+        )
+    for message in messages:
+        events.append(
+            {
+                "kind": "message",
+                "occurred_at": message.sent_at,
+                "message": message,
             }
         )
     return sorted(events, key=lambda event: event["occurred_at"], reverse=True)

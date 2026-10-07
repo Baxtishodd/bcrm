@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Email yozish · BCRM{% endblock %}
+{% block heading %}Email yozish{% endblock %}
+
+{% block content %}
+{% include "shared/page_navigation.html" with back_url="/messages/" back_label="Xabarlarga qaytish" current_label="Email yozish" %}
+<section class="panel form-panel email-compose-panel">
+    <form method="post" enctype="multipart/form-data" data-email-compose>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+
+        <header class="email-compose-intro">
+            <span class="email-compose-icon">{% include "shared/icon.html" with name="email" %}</span>
+            <div>
+                <p class="eyebrow">Yangi xabar</p>
+                <h2>Email tayyorlash</h2>
+                <p>CRM kontaktlarini tanlang yoki email manzillarini qo‘lda kiriting.</p>
+            </div>
+        </header>
+
+        <div class="email-compose-grid">
+            <div class="form-field full">
+                <label for="{{ form.mailbox.id_for_label }}">{{ form.mailbox.label }}</label>
+                {{ form.mailbox }}
+                {% for error in form.mailbox.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                {% if not form.mailbox.field.queryset.exists %}
+                <small>Faol mailbox topilmadi. Avval Email sozlamalaridan mailbox ulang.</small>
+                {% endif %}
+            </div>
+
+            <div class="form-field full">
+                <label for="contact-email-picker">CRM kontaktidan qo‘shish</label>
+                <div class="recipient-picker">
+                    <input id="contact-email-picker" type="email" list="contact-email-options" placeholder="Kontakt yoki emailni qidiring" data-contact-email>
+                    <button class="button button-secondary" type="button" data-add-contact-email>Qo‘shish</button>
+                </div>
+                <datalist id="contact-email-options">
+                    {% for contact in contacts %}
+                    <option value="{{ contact.email }}">{{ contact.full_name }}{% if contact.company %} · {{ contact.company.name }}{% endif %}</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <div class="form-field full">
+                <label for="{{ form.to.id_for_label }}">{{ form.to.label }}</label>
+                {{ form.to }}
+                {% if form.to.help_text %}<small>{{ form.to.help_text }}</small>{% endif %}
+                {% for error in form.to.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+
+            <details class="email-copy-fields full"{% if form.cc.value or form.bcc.value %} open{% endif %}>
+                <summary>CC va BCC qo‘shish</summary>
+                <div class="email-compose-grid">
+                    <div class="form-field">
+                        <label for="{{ form.cc.id_for_label }}">{{ form.cc.label }}</label>
+                        {{ form.cc }}
+                        {% for error in form.cc.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="form-field">
+                        <label for="{{ form.bcc.id_for_label }}">{{ form.bcc.label }}</label>
+                        {{ form.bcc }}
+                        {% for error in form.bcc.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                    </div>
+                </div>
+            </details>
+
+            <div class="form-field full email-send-mode">
+                <label>{{ form.send_mode.label }}</label>
+                {{ form.send_mode }}
+                <small>{{ form.send_mode.help_text }}</small>
+                {% for error in form.send_mode.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="form-field full">
+                <label for="{{ form.subject.id_for_label }}">{{ form.subject.label }}</label>
+                {{ form.subject }}
+                {% for error in form.subject.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="form-field full">
+                <label for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>
+                {{ form.body }}
+                {% for error in form.body.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="form-field full">
+                <label for="{{ form.attachments.id_for_label }}">{{ form.attachments.label }}</label>
+                {{ form.attachments }}
+                <small data-attachment-summary>{{ form.attachments.help_text }}</small>
+                {% for error in form.attachments.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="button button-secondary" href="{% url 'communications:inbox' %}">Bekor qilish</a>
+            <button class="button button-primary" type="submit"{% if not form.mailbox.field.queryset.exists %} disabled{% endif %}>Email yuborish</button>
+        </div>
+    </form>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/email-compose.js' %}?v=20261008-1" defer></script>
+{% endblock %}

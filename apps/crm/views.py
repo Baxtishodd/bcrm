@@ -13,6 +13,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
+from apps.communications.models import Message
 from apps.customers.models import Contact
 from apps.sales.models import Quotation
 
@@ -132,6 +133,10 @@ def lead_detail(request, public_id):
         for quotation in quotations
         for delivery in quotation.deliveries.all()
     ]
+    communication_messages = Message.objects.filter(
+        organization=request.organization,
+        conversation__lead=lead,
+    ).select_related("conversation", "sender")
     linked_order = next(
         (quotation.salesorder for quotation in quotations if hasattr(quotation, "salesorder")),
         None,
@@ -154,6 +159,7 @@ def lead_detail(request, public_id):
             "timeline": build_communication_timeline(
                 activities=lead.activities.all(),
                 deliveries=deliveries,
+                messages=communication_messages,
             ),
             "organization": request.organization,
         },

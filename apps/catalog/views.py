@@ -320,6 +320,9 @@ def offer_create_version(request, public_id):
                     organization=request.organization,
                     price_list=new_version,
                     product=line.product,
+                    color=line.color,
+                    size=line.size,
+                    image=line.image,
                     description_snapshot=line.description_snapshot,
                     available_quantity=line.available_quantity,
                     unit=line.unit,
@@ -354,6 +357,7 @@ def offer_document_edit(request, public_id):
     form = PriceListForm(request.POST or None, instance=offer)
     line_formset = PriceListDocumentLineFormSet(
         request.POST or None,
+        request.FILES or None,
         instance=offer,
         prefix="lines",
         form_kwargs={
@@ -361,7 +365,11 @@ def offer_document_edit(request, public_id):
             "price_list": offer,
         },
     )
-    if form.is_valid() and line_formset.is_valid():
+    form_is_valid = form.is_valid()
+    if form_is_valid:
+        offer.document_type = form.cleaned_data["document_type"]
+        offer.category = form.cleaned_data["category"]
+    if form_is_valid and line_formset.is_valid():
         with transaction.atomic():
             form.save()
             lines = line_formset.save(commit=False)

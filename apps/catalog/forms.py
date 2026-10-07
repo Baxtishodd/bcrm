@@ -41,7 +41,14 @@ class ProductForm(forms.ModelForm):
             "description": forms.Textarea(attrs={"rows": 4}),
             "price_valid_until": forms.DateInput(attrs={"type": "date"}),
             "image": forms.ClearableFileInput(
-                attrs={"accept": "image/jpeg,image/png,image/webp"}
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp",
+                    "data-image-editor": "true",
+                    "data-image-editor-title": "Mahsulot rasmini tahrirlash",
+                    "data-image-editor-help": "Mahsulotni kadr ichiga joylashtiring.",
+                    "data-image-editor-aspect": "4/3",
+                    "data-image-editor-width": "1200",
+                }
             ),
         }
         help_texts = {
@@ -220,6 +227,9 @@ class PriceListLineForm(forms.ModelForm):
         model = PriceListLine
         fields = (
             "product",
+            "color",
+            "size",
+            "image",
             "description_snapshot",
             "available_quantity",
             "unit",
@@ -231,9 +241,22 @@ class PriceListLineForm(forms.ModelForm):
         widgets = {
             "description_snapshot": forms.Textarea(attrs={"rows": 5}),
             "planned_loading_date": forms.DateInput(attrs={"type": "date"}),
+            "image": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp",
+                    "data-image-editor": "true",
+                    "data-image-editor-title": "Product List rasmini tahrirlash",
+                    "data-image-editor-help": "Kiyim rasmini kadr ichiga joylashtiring.",
+                    "data-image-editor-aspect": "4/3",
+                    "data-image-editor-width": "1200",
+                }
+            ),
         }
         labels = {
             "product": "Mahsulot",
+            "color": "Rang",
+            "size": "O'lcham",
+            "image": "Rasm",
             "description_snapshot": "Taklifdagi texnik tavsif",
             "available_quantity": "Taklif qilinadigan miqdor",
             "unit": "O'lchov birligi",
@@ -245,6 +268,9 @@ class PriceListLineForm(forms.ModelForm):
 
     def __init__(self, *args, organization, price_list=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.instance.organization = organization
+        if price_list is not None:
+            self.instance.price_list = price_list
         products = Product.objects.filter(organization=organization, is_active=True)
         if price_list and price_list.category:
             products = products.filter(category=price_list.category)
@@ -266,6 +292,9 @@ PriceListDocumentLineFormSet = inlineformset_factory(
     form=PriceListLineForm,
     fields=(
         "product",
+        "color",
+        "size",
+        "image",
         "description_snapshot",
         "available_quantity",
         "unit",
