@@ -26,7 +26,7 @@
         </select>
         <button class="button button-secondary" type="submit">Filtrlash</button>
     </form>
-    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:create' %}">Yangi mahsulot</a>{% endif %}
+    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi mahsulot</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="panel-heading">

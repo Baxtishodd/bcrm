@@ -76,7 +76,7 @@ class LeadForm(forms.ModelForm):
         cleaned_data = super().clean()
         customer = cleaned_data.get("customer")
         contact = cleaned_data.get("contact")
-        if contact and customer and contact.company_id != customer.id:
+        if contact and customer and contact.company_id and contact.company_id != customer.id:
             self.add_error("contact", "Kontakt tanlangan mijozga tegishli emas.")
         return cleaned_data
 
@@ -114,11 +114,12 @@ class ActivityForm(forms.ModelForm):
 
 class TaskForm(ActivityForm):
     class Meta(ActivityForm.Meta):
-        fields = ("lead", "customer") + ActivityForm.Meta.fields
+        fields = ("lead", "customer", "contact") + ActivityForm.Meta.fields
         labels = {
             **ActivityForm.Meta.labels,
             "lead": "Lead",
             "customer": "Mijoz",
+            "contact": "Kontakt",
         }
 
     def __init__(self, *args, organization, **kwargs):
@@ -130,17 +131,29 @@ class TaskForm(ActivityForm):
             organization=organization,
             is_active=True,
         )
+        self.fields["contact"].queryset = Contact.objects.filter(
+            organization=organization,
+            is_active=True,
+        ).select_related("company")
         self.fields["lead"].required = False
         self.fields["customer"].required = False
+        self.fields["contact"].required = False
 
     def clean(self):
         cleaned_data = super().clean()
         lead = cleaned_data.get("lead")
         customer = cleaned_data.get("customer")
-        if not lead and not customer:
-            raise forms.ValidationError("Lead yoki mijozdan birini tanlang.")
+        contact = cleaned_data.get("contact")
+        if not lead and not customer and not contact:
+            raise forms.ValidationError("Lead, mijoz yoki kontaktdan birini tanlang.")
         if lead and customer and lead.customer_id != customer.id:
             self.add_error("customer", "Mijoz tanlangan Lead'ga tegishli emas.")
+        if customer and contact and contact.company_id and contact.company_id != customer.id:
+            self.add_error("contact", "Kontakt tanlangan mijozga tegishli emas.")
         if lead and not customer:
             cleaned_data["customer"] = lead.customer
+        if lead and not contact:
+            cleaned_data["contact"] = lead.contact
+        if contact and not cleaned_data.get("customer"):
+            cleaned_data["customer"] = contact.company
         return cleaned_data

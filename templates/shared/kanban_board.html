@@ -6,7 +6,7 @@
     data-kanban-error-message="{{ kanban_error_message|default:"O'zgarishni saqlab bo'lmadi." }}"
 >
     {% for value, label, items in columns %}
-    <div class="kanban-column" data-kanban-column>
+    <div class="kanban-column kanban-column-{{ value }}" data-kanban-column>
         <div class="kanban-heading">
             <strong>{{ label }}</strong>
             <span data-kanban-count>{{ items|length }}</span>

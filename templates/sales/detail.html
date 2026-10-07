@@ -44,7 +44,7 @@
             {% for line in quotation.lines.all %}
             <tr>
                 <td>{{ line.product }}</td><td>{{ line.variant|default:"—" }}</td><td>{{ line.description|default:"—" }}</td>
-                <td>{{ line.quantity }}</td><td>{{ line.unit_price }} {{ quotation.currency }}</td>
+                <td>{{ line.quantity }}</td><td>{{ line.unit_price }} {{ quotation.currency }}<br><small class="muted">{{ line.get_price_source_display }}{% if line.source_price_list %} · {{ line.source_price_list.number }} v{{ line.source_price_list.version }}{% endif %}</small>{% if line.price_override_reason %}<br><small class="muted">Sabab: {{ line.price_override_reason }}</small>{% endif %}</td>
                 <td>{{ line.line_total }} {{ quotation.currency }}</td>
             </tr>
             {% empty %}

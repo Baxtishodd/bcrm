@@ -13,6 +13,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
+from apps.customers.models import Contact
 from apps.sales.models import Quotation
 
 from .forms import ActivityForm, LeadForm, TaskForm
@@ -63,9 +64,27 @@ def lead_list(request):
 @organization_required
 @organization_permission_required(OrganizationPermission.MANAGE_LEADS)
 def lead_create(request):
+    initial = {}
+    cancel_url = "/leads/"
+    contact_public_id = request.GET.get("contact", "") if request.method == "GET" else ""
+    if contact_public_id:
+        contact = get_object_or_404(
+            Contact.objects.select_related("company", "owner"),
+            public_id=contact_public_id,
+            organization=request.organization,
+        )
+        initial = {
+            "contact": contact,
+            "customer": contact.company,
+            "assigned_to": contact.owner or request.user,
+            "source": contact.source,
+            "title": f"{contact.full_name} bilan savdo imkoniyati",
+        }
+        cancel_url = f"/customers/contacts/{contact.public_id}/"
     form = LeadForm(
         request.POST or None,
         organization=request.organization,
+        initial=initial,
     )
     if form.is_valid():
         lead = form.save(commit=False)
@@ -79,7 +98,7 @@ def lead_create(request):
         {
             "form": form,
             "page_title": "Yangi lead",
-            "cancel_url": "/leads/",
+            "cancel_url": cancel_url,
             "organization": request.organization,
         },
     )
@@ -288,6 +307,7 @@ def activity_create(request, public_id):
         activity.organization = request.organization
         activity.lead = lead
         activity.customer = lead.customer
+        activity.contact = lead.contact
         activity.save()
         messages.success(request, "Faoliyat qo'shildi.")
         return redirect("crm:detail", public_id=lead.public_id)
@@ -310,7 +330,7 @@ def task_list(request):
     query = request.GET.get("q", "").strip()
     tasks = Activity.objects.filter(
         organization=request.organization,
-    ).select_related("lead", "lead__customer", "customer", "assigned_to")
+    ).select_related("lead", "lead__customer", "customer", "contact", "assigned_to")
     if status == "completed":
         tasks = tasks.filter(completed_at__isnull=False)
     elif status != "all":
@@ -321,6 +341,7 @@ def task_list(request):
             | Q(lead__title__icontains=query)
             | Q(lead__customer__name__icontains=query)
             | Q(customer__name__icontains=query)
+            | Q(contact__full_name__icontains=query)
         )
     now = timezone.now()
     return render(
@@ -340,7 +361,26 @@ def task_list(request):
 @organization_required
 @organization_permission_required(OrganizationPermission.MANAGE_TASKS)
 def task_create(request):
-    form = TaskForm(request.POST or None, organization=request.organization)
+    initial = {}
+    cancel_url = "/tasks/"
+    contact_public_id = request.GET.get("contact", "") if request.method == "GET" else ""
+    if contact_public_id:
+        contact = get_object_or_404(
+            Contact.objects.select_related("company", "owner"),
+            public_id=contact_public_id,
+            organization=request.organization,
+        )
+        initial = {
+            "contact": contact,
+            "customer": contact.company,
+            "assigned_to": contact.owner or request.user,
+        }
+        cancel_url = f"/customers/contacts/{contact.public_id}/"
+    form = TaskForm(
+        request.POST or None,
+        organization=request.organization,
+        initial=initial,
+    )
     if form.is_valid():
         task = form.save(commit=False)
         task.organization = request.organization
@@ -353,7 +393,7 @@ def task_create(request):
         {
             "form": form,
             "page_title": "Yangi vazifa yoki eslatma",
-            "cancel_url": "/tasks/",
+            "cancel_url": cancel_url,
             "organization": request.organization,
         },
     )

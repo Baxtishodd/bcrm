@@ -66,7 +66,7 @@
                     <td>{{ line_form.variant }}{% for error in line_form.variant.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
                     <td>{{ line_form.description }}{% for error in line_form.description.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
                     <td>{{ line_form.quantity }}{% for error in line_form.quantity.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
-                    <td>{{ line_form.unit_price }}{% for error in line_form.unit_price.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
+                    <td>{{ line_form.unit_price }}{{ line_form.price_override_reason }}{% for error in line_form.unit_price.errors %}<div class="field-error">{{ error }}</div>{% endfor %}{% for error in line_form.price_override_reason.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</td>
                     <td class="line-total">{% if line_form.instance.pk %}{{ line_form.instance.line_total }}{% else %}0{% endif %}</td>
                     <td class="document-line-remove">{{ line_form.DELETE }}<button type="button" class="link-button remove-line">Olib tashlash</button></td>
                 </tr>
@@ -83,7 +83,7 @@
                 <td>{{ line_formset.empty_form.variant }}</td>
                 <td>{{ line_formset.empty_form.description }}</td>
                 <td>{{ line_formset.empty_form.quantity }}</td>
-                <td>{{ line_formset.empty_form.unit_price }}</td>
+                <td>{{ line_formset.empty_form.unit_price }}{{ line_formset.empty_form.price_override_reason }}</td>
                 <td class="line-total">0</td>
                 <td class="document-line-remove">{{ line_formset.empty_form.DELETE }}<button type="button" class="link-button remove-line">Olib tashlash</button></td>
             </tr>

@@ -118,6 +118,42 @@ lavozimiga ruxsat berilgan amallarni bajaradi va bloklanganda tizimdan chiqadi.
 - [x] `ROADMAP.md` belgilari va keyingi ustuvor vazifalarni yangilash.
 - [ ] Alohida tasdiqdan keyin commit va GitHub'ga push qilish.
 
+## Sprint — 2026-yil 2-oktyabr
+
+Sprint maqsadi: narxlar tarixini yo'qotmasdan boshqarish va savdo taklifiga
+amaldagi narxni xavfsiz olib o'tish.
+
+- [x] Sidebar va asosiy ichki amallar uchun umumiy SVG ikonka tizimini qo'shish.
+- [x] Tashkilot konteksti va ruxsatlarni barcha ichki sahifalarda barqaror qilish.
+- [x] Price-list hujjatlariga versiya raqami va faol/arxiv hayot siklini qo'shish.
+- [x] Yangi versiyani avvalgi hujjat va mahsulot qatorlaridan nusxalash.
+- [x] Bir segmentda yangi versiya faollashganda eskisini avtomatik arxivlash.
+- [x] Tijorat taklifiga faol price-list narxini valyuta, muddat va miqdor bo'yicha olish.
+- [x] Avtomatik narx qo'lda o'zgartirilganda sabab va narx manbasini saqlash.
+- [x] Narxlar uchun to'rt kasr aniqligini taklif va buyurtmagacha saqlash.
+- [x] Migratsiyalar, avtomatik testlar va brauzer tekshiruvini bajarish.
+
+**Tayyorlik mezoni:** sotuvchi price-listning yangi versiyasini eski hujjatdan
+yaratadi, faollashtiradi va tijorat taklifiga shu versiyadagi amaldagi narx
+avtomatik tushadi; har qanday qo'lda o'zgarish sababi bilan qayd etiladi.
+
+## Sprint — 2026-yil 3-oktyabr
+
+Sprint maqsadi: jismoniy shaxslarni faqat mijoz kompaniyasi ichida emas,
+mustaqil CRM kontakti sifatida ham boshqarish.
+
+- [x] Kompaniyaga bog'lanishi ixtiyoriy bo'lgan universal kontakt modelini yaratish.
+- [x] Kontakt turi, hudud, manba, teglar, mas'ul va holat maydonlarini qo'shish.
+- [x] Kontaktlar uchun alohida sidebar bo'limi, filtr va pagination yaratish.
+- [x] Kontakt profili, aloqa tarixi va bog'langan Leadlarni ko'rsatish.
+- [x] Kontaktdan avtomatik to'ldirilgan Lead va vazifa yaratish oqimini qo'shish.
+- [x] Telefon va email bo'yicha tashkilot ichidagi dublikatlarni tekshirish.
+- [x] Eski kontaktlarni saqlagan holda migratsiya va avtomatik testlarni bajarish.
+
+**Tayyorlik mezoni:** mijoz, yetkazib beruvchi, hamkor yoki boshqa vakil
+kompaniyasiz ham kontakt sifatida saqlanadi; undan Lead va vazifa yaratiladi,
+barcha aloqa tarixi yagona profilda ko'rinadi.
+
 ## Keyingi bosqichlar
 
 ### Savdo va kommunikatsiya
@@ -144,7 +180,7 @@ lavozimiga ruxsat berilgan amallarni bajaradi va bloklanganda tizimdan chiqadi.
 - [x] Rejadagi va haqiqiy tushumni taqqoslash.
 - [x] To'lov rejalari va tushumlarni tahrirlash hamda sabab bilan bekor qilish.
 - [x] Moliyaviy o'zgarishlar tarixini saqlash va kechikkan to'lovlarni ko'rsatish.
-- [ ] 7/30 kunlik pul oqimi prognozi va to'lov filtrlarini qo'shish.
+- [x] 7/30 kunlik pul oqimi prognozi va to'lov filtrlarini qo'shish.
 - [ ] Moliyaviy hisobotlarni Excel va PDF formatida eksport qilish.
 - [x] Rollar va amallar bo'yicha batafsil ruxsat tizimini qo'shish.
 

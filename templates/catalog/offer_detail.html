@@ -20,6 +20,7 @@
         <div class="button-row">
             <a class="button button-secondary" href="{% url 'catalog:offer-pdf' offer.public_id %}">PDF yuklab olish</a>
             {% if request.crm_permissions.manage_catalog %}
+            <form method="post" action="{% url 'catalog:offer-create-version' offer.public_id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Yangi versiya</button></form>
             <a class="button" href="{% url 'catalog:offer-document-edit' offer.public_id %}">Hujjat muharriri</a>
             <a class="button button-secondary" href="{% url 'catalog:offer-update' offer.public_id %}">Tahrirlash</a>
             <a class="button button-secondary" href="{% url 'catalog:offer-line-create' offer.public_id %}">Mahsulot qo'shish</a>
@@ -28,6 +29,7 @@
     </div>
     <dl class="details compact-details">
         <div><dt>Yo'nalish</dt><dd>{{ offer.get_category_display|default:"Barcha mahsulotlar" }}</dd></div>
+        <div><dt>Versiya</dt><dd>v{{ offer.version }}</dd></div>
         <div><dt>Til</dt><dd>{{ offer.get_language_display }}</dd></div>
         <div><dt>Hujjat sanasi</dt><dd>{{ offer.issue_date|date:"d.m.Y" }}</dd></div>
         <div><dt>Amal qilish</dt><dd>{{ offer.valid_until|date:"d.m.Y"|default:"Cheklanmagan" }}</dd></div>

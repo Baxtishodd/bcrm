@@ -4,6 +4,7 @@ from django.forms import inlineformset_factory
 
 from apps.accounts.models import MailboxAccount, User
 from apps.catalog.models import Product, ProductVariant
+from apps.catalog.pricing import find_active_price
 from apps.common.widgets import DependentContactSelect, SearchableSelect
 from apps.crm.models import Lead
 from apps.customers.models import Contact, CustomerCompany
@@ -111,17 +112,31 @@ class QuotationForm(forms.ModelForm):
 class QuotationLineForm(forms.ModelForm):
     class Meta:
         model = QuotationLine
-        fields = ("product", "variant", "description", "quantity", "unit_price")
+        fields = (
+            "product",
+            "variant",
+            "description",
+            "quantity",
+            "unit_price",
+            "price_override_reason",
+        )
+        widgets = {
+            "price_override_reason": forms.TextInput(
+                attrs={"placeholder": "Faqat avtomatik narx o'zgartirilsa..."}
+            )
+        }
         labels = {
             "product": "Mahsulot",
             "variant": "Rang-o'lcham varianti",
             "description": "Tavsif",
             "quantity": "Miqdor",
             "unit_price": "Birlik narxi",
+            "price_override_reason": "Narxni o'zgartirish sababi",
         }
 
     def __init__(self, *args, organization, quotation=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.organization = organization
         self.quotation = quotation
         self.fields["product"].queryset = Product.objects.filter(
             organization=organization,
@@ -132,9 +147,12 @@ class QuotationLineForm(forms.ModelForm):
             product__is_active=True,
         ).select_related("product", "color", "size")
         self.fields["unit_price"].required = False
-        self.fields[
-            "unit_price"
-        ].help_text = "Bo'sh qoldirilsa, mahsulot katalogidagi amaldagi narx olinadi."
+        self.fields["unit_price"].help_text = (
+            "Bo'sh qoldirilsa, faol price-list yoki mahsulot katalogidagi narx olinadi."
+        )
+        self._resolved_price_line = None
+        self._resolved_source_price = None
+        self._resolved_price_source = None
 
     def clean(self):
         cleaned_data = super().clean()
@@ -142,18 +160,64 @@ class QuotationLineForm(forms.ModelForm):
         variant = cleaned_data.get("variant")
         quantity = cleaned_data.get("quantity")
         unit_price = cleaned_data.get("unit_price")
+        override_reason = cleaned_data.get("price_override_reason", "").strip()
         if variant and product and variant.product_id != product.id:
             self.add_error("variant", "Variant tanlangan mahsulotga tegishli emas.")
         if variant and quantity is not None and quantity != quantity.to_integral_value():
             self.add_error("quantity", "Variantli mahsulot miqdori butun son bo'lishi kerak.")
-        if unit_price is None and product:
-            if product.list_price is None:
-                self.add_error("unit_price", "Mahsulot katalogida narx mavjud emas.")
+        if product:
+            currency = self.quotation.currency if self.quotation else product.price_currency
+            price_line = find_active_price(
+                organization=self.organization,
+                product=product,
+                currency=currency,
+                quantity=quantity,
+            )
+            automatic_price = None
+            automatic_source = None
+            if price_line:
+                automatic_price = price_line.unit_price
+                automatic_source = QuotationLine.PriceSource.PRICE_LIST
+            elif product.list_price is not None and product.price_currency == currency:
+                automatic_price = product.list_price
+                automatic_source = QuotationLine.PriceSource.CATALOG
+
+            if unit_price is None:
+                if automatic_price is None:
+                    self.add_error(
+                        "unit_price",
+                        f"{currency} valyutasida amaldagi narx mavjud emas.",
+                    )
+                else:
+                    cleaned_data["unit_price"] = automatic_price
+                    unit_price = automatic_price
+
+            if automatic_price is not None and unit_price != automatic_price:
+                if not override_reason:
+                    self.add_error(
+                        "price_override_reason",
+                        "Avtomatik narx o'zgartirilsa, sababini kiriting.",
+                    )
+                self._resolved_price_source = QuotationLine.PriceSource.MANUAL
             else:
-                cleaned_data["unit_price"] = product.list_price
+                self._resolved_price_source = automatic_source or QuotationLine.PriceSource.MANUAL
+            self._resolved_price_line = price_line
+            self._resolved_source_price = automatic_price
         if not cleaned_data.get("description") and product:
             cleaned_data["description"] = product.description or product.name
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.price_source = self._resolved_price_source or QuotationLine.PriceSource.MANUAL
+        instance.source_unit_price = self._resolved_source_price
+        instance.source_price_list = (
+            self._resolved_price_line.price_list if self._resolved_price_line else None
+        )
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class QuotationDocumentForm(forms.ModelForm):
@@ -204,7 +268,14 @@ QuotationDocumentLineFormSet = inlineformset_factory(
     Quotation,
     QuotationLine,
     form=QuotationLineForm,
-    fields=("product", "variant", "description", "quantity", "unit_price"),
+    fields=(
+        "product",
+        "variant",
+        "description",
+        "quantity",
+        "unit_price",
+        "price_override_reason",
+    ),
     extra=1,
     can_delete=True,
 )

@@ -10,8 +10,13 @@ from apps.crm.models import Activity
 from apps.crm.timeline import build_communication_timeline
 from apps.sales.models import QuotationDelivery
 
-from .forms import ContactForm, CustomerCompanyForm, CustomerListFilterForm
-from .models import CustomerCompany
+from .forms import (
+    ContactForm,
+    ContactListFilterForm,
+    CustomerCompanyForm,
+    CustomerListFilterForm,
+)
+from .models import Contact, CustomerCompany
 
 
 @login_required
@@ -109,7 +114,7 @@ def customer_create(request):
 @organization_required
 def customer_detail(request, public_id):
     customer = get_object_or_404(
-        CustomerCompany.objects.prefetch_related("contacts"),
+        CustomerCompany.objects.prefetch_related("contacts__owner"),
         public_id=public_id,
         organization=request.organization,
     )
@@ -168,27 +173,192 @@ def customer_update(request, public_id):
 @login_required
 @organization_required
 @organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
-def contact_create(request, public_id):
-    customer = get_object_or_404(
-        CustomerCompany,
+def contact_list(request):
+    list_scope = request.GET.get("scope", "all")
+    if list_scope not in {"all", "mine"}:
+        list_scope = "all"
+    view_mode = request.GET.get("view", "cards")
+    if view_mode not in {"cards", "table"}:
+        view_mode = "cards"
+    filter_form = ContactListFilterForm(request.GET, organization=request.organization)
+    if list_scope == "mine":
+        filter_form.fields.pop("owner", None)
+    contacts = Contact.objects.filter(
+        organization=request.organization,
+    ).select_related("company", "owner")
+    if list_scope == "mine":
+        contacts = contacts.filter(owner=request.user)
+    if filter_form.is_valid():
+        query = filter_form.cleaned_data["q"].strip()
+        contact_type = filter_form.cleaned_data["contact_type"]
+        company = filter_form.cleaned_data["company"]
+        country = filter_form.cleaned_data["country"]
+        owner = filter_form.cleaned_data.get("owner")
+    else:
+        query = request.GET.get("q", "").strip()
+        contact_type = country = ""
+        company = owner = None
+    if query:
+        contacts = contacts.filter(
+            Q(full_name__icontains=query)
+            | Q(position__icontains=query)
+            | Q(phone__icontains=query)
+            | Q(whatsapp__icontains=query)
+            | Q(email__icontains=query)
+            | Q(tags__icontains=query)
+            | Q(company__name__icontains=query)
+        )
+    if contact_type:
+        contacts = contacts.filter(contact_type=contact_type)
+    if company:
+        contacts = contacts.filter(company=company)
+    if country:
+        contacts = contacts.filter(country=country)
+    if owner:
+        contacts = contacts.filter(owner=owner)
+    pagination = paginate_queryset(request, contacts)
+    tabs_query_params = request.GET.copy()
+    tabs_query_params.pop("scope", None)
+    tabs_query_params.pop("page", None)
+    tabs_query = tabs_query_params.urlencode()
+    contacts_path = request.path
+    reset_params = []
+    if list_scope == "mine":
+        reset_params.append("scope=mine")
+    if view_mode == "table":
+        reset_params.append("view=table")
+    reset_query = "&".join(reset_params)
+    return render(
+        request,
+        "customers/contact_list.html",
+        {
+            "contacts": pagination["page_obj"].object_list,
+            "filter_form": filter_form,
+            "filter_reset_url": (
+                f"{contacts_path}?{reset_query}" if reset_query else contacts_path
+            ),
+            "filter_create_url": (
+                "/customers/contacts/new/"
+                if request.crm_permissions[OrganizationPermission.MANAGE_CUSTOMERS]
+                else ""
+            ),
+            "filter_create_label": "Yangi kontakt",
+            "organization": request.organization,
+            "view_mode": view_mode,
+            "list_scope": list_scope,
+            "contacts_all_url": (
+                f"{contacts_path}?{tabs_query}&scope=all"
+                if tabs_query
+                else f"{contacts_path}?scope=all"
+            ),
+            "contacts_mine_url": (
+                f"{contacts_path}?{tabs_query}&scope=mine"
+                if tabs_query
+                else f"{contacts_path}?scope=mine"
+            ),
+            **pagination,
+        },
+    )
+
+
+@login_required
+@organization_required
+def contact_detail(request, public_id):
+    contact = get_object_or_404(
+        Contact.objects.select_related("company", "owner"),
         public_id=public_id,
         organization=request.organization,
     )
-    form = ContactForm(request.POST or None)
+    leads = contact.lead_set.filter(
+        organization=request.organization,
+    ).select_related("stage", "assigned_to")
+    activities = Activity.objects.filter(
+        Q(contact=contact) | Q(lead__contact=contact),
+        organization=request.organization,
+    ).select_related("lead", "assigned_to")
+    deliveries = QuotationDelivery.objects.filter(
+        organization=request.organization,
+        quotation__contact=contact,
+    ).select_related("quotation", "sent_by")
+    return render(
+        request,
+        "customers/contact_detail.html",
+        {
+            "contact": contact,
+            "leads": leads,
+            "timeline": build_communication_timeline(
+                activities=activities.distinct(),
+                deliveries=deliveries,
+            ),
+            "organization": request.organization,
+        },
+    )
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
+def contact_create(request, customer_public_id=None):
+    customer = None
+    if customer_public_id:
+        customer = get_object_or_404(
+            CustomerCompany,
+            public_id=customer_public_id,
+            organization=request.organization,
+        )
+    form = ContactForm(
+        request.POST or None,
+        request.FILES or None,
+        organization=request.organization,
+        initial={"company": customer, "contact_type": Contact.Type.CUSTOMER},
+    )
     if form.is_valid():
         contact = form.save(commit=False)
         contact.organization = request.organization
-        contact.company = customer
+        contact.owner = request.user
         contact.save()
         messages.success(request, "Kontakt qo'shildi.")
-        return redirect("customers:detail", public_id=customer.public_id)
+        return redirect("customers:contact-detail", public_id=contact.public_id)
     return render(
         request,
-        "shared/form.html",
+        "customers/contact_form.html",
         {
             "form": form,
             "page_title": "Yangi kontakt",
-            "cancel_url": f"/customers/{customer.public_id}/",
+            "cancel_url": (
+                f"/customers/{customer.public_id}/" if customer else "/customers/contacts/"
+            ),
+            "organization": request.organization,
+        },
+    )
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
+def contact_update(request, public_id):
+    contact = get_object_or_404(
+        Contact,
+        public_id=public_id,
+        organization=request.organization,
+    )
+    form = ContactForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=contact,
+        organization=request.organization,
+    )
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Kontakt ma'lumotlari yangilandi.")
+        return redirect("customers:contact-detail", public_id=contact.public_id)
+    return render(
+        request,
+        "customers/contact_form.html",
+        {
+            "form": form,
+            "page_title": "Kontaktni tahrirlash",
+            "cancel_url": f"/customers/contacts/{contact.public_id}/",
             "organization": request.organization,
         },
     )

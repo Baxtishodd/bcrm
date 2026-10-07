@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from apps.common.images import OptimizedImageField
 from apps.common.models import TimeStampedModel
 
 from .crypto import decrypt_secret, encrypt_secret
@@ -39,6 +40,7 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=30, blank=True)
+    avatar = OptimizedImageField(blank=True)
     preferred_language = models.CharField(
         max_length=2,
         choices=Language.choices,

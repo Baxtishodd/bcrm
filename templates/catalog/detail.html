@@ -15,7 +15,7 @@
                 {% if product.category == 'yarn' or product.category == 'woven_fabric' %}
                 <a class="button button-secondary" href="{% url 'catalog:specification-update' product.public_id %}">Texnik xususiyatlar</a>
                 {% endif %}
-                <a class="button button-secondary" href="{% url 'catalog:update' product.public_id %}">Tahrirlash</a>
+                <a class="button button-secondary" href="{% url 'catalog:update' product.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>
                 {% endif %}
             </div>
         </div>

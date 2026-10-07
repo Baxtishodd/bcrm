@@ -11,9 +11,9 @@
 <section class="page-actions">
     <form class="search" method="get">
         <input type="search" name="q" value="{{ query }}" placeholder="Taklif raqami yoki mijoz">
-        <button class="button button-secondary" type="submit">Qidirish</button>
+        <button class="button button-secondary" type="submit">{% include "shared/icon.html" with name="search" %}<span>Qidirish</span></button>
     </form>
-    {% if request.crm_permissions.manage_sales %}<a class="button" href="{% url 'sales:create' %}">Yangi taklif</a>{% endif %}
+    {% if request.crm_permissions.manage_sales %}<a class="button" href="{% url 'sales:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi taklif</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">

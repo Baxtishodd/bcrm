@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Dashboard — BCRM{% endblock %}
+
 {% block content %}
 {% if organization %}
 <section class="stats">
@@ -15,7 +17,7 @@
 <section class="panel report-direction-panel">
     <div class="panel-heading">
         <div><p class="eyebrow">Pul oqimi</p><h2>7/30 kunlik tushum prognozi</h2></div>
-        {% if request.crm_permissions.manage_organization %}<a class="button button-secondary" href="{% url 'sales-report' %}">Batafsil hisobot</a>{% endif %}
+        {% if request.crm_permissions.manage_organization %}<a class="button button-secondary" href="{% url 'sales-report' %}">{% include "shared/icon.html" with name="reports" %}<span>Batafsil hisobot</span></a>{% endif %}
     </div>
     <div class="table-wrap"><table>
         <thead><tr><th>Valyuta</th><th>Muddati o'tgan</th><th>Keyingi 7 kun</th><th>Keyingi 30 kun</th></tr></thead>
@@ -31,7 +33,7 @@
 <article class="panel">
     <div class="panel-heading">
         <div><p class="eyebrow">CRM</p><h2>So'nggi leadlar</h2></div>
-        <a class="button" href="{% url 'crm:create' %}">Yangi lead</a>
+        <a class="button" href="{% url 'crm:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi lead</span></a>
     </div>
     <div class="table-wrap">
         <table>
@@ -64,13 +66,24 @@
 <article class="panel">
     <div class="panel-heading">
         <div><p class="eyebrow">Reja</p><h2>Yaqin vazifalar</h2></div>
-        <a class="button button-secondary" href="{% url 'tasks:list' %}">Barchasi</a>
+        <a class="button button-secondary" href="{% url 'tasks:list' %}">{% include "shared/icon.html" with name="tasks" %}<span>Barchasi</span></a>
     </div>
     <div class="stack-list">
         {% for task in upcoming_tasks %}
         <div class="stack-item">
+            {% if task.lead %}
             <a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.subject }}</a>
             <span>{{ task.lead.title }}</span>
+            {% elif task.contact %}
+            <a class="table-link" href="{% url 'customers:contact-detail' task.contact.public_id %}">{{ task.subject }}</a>
+            <span>{{ task.contact.full_name }}</span>
+            {% elif task.customer %}
+            <a class="table-link" href="{% url 'customers:detail' task.customer.public_id %}">{{ task.subject }}</a>
+            <span>{{ task.customer.name }}</span>
+            {% else %}
+            <strong>{{ task.subject }}</strong>
+            <span>Biriktirilmagan vazifa</span>
+            {% endif %}
             <small>{{ task.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</small>
         </div>
         {% empty %}<p class="empty">Ochiq vazifalar yo'q.</p>{% endfor %}

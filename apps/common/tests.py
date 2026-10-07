@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.crm.models import Activity, Lead
-from apps.customers.models import CustomerCompany
+from apps.customers.models import Contact, CustomerCompany
 from apps.organizations.models import Membership, Organization
 from apps.sales.models import Payment, PaymentPlan, Quotation, SalesOrder
 
@@ -236,7 +236,7 @@ class SalesReportTests(TestCase):
             currency="USD",
             created_by=self.salesperson,
         )
-        order = SalesOrder.objects.create(
+        self.order = SalesOrder.objects.create(
             organization=self.organization,
             number="SO-REPORT-1",
             customer=self.customer,
@@ -244,16 +244,16 @@ class SalesReportTests(TestCase):
             order_date=date(2026, 9, 30),
             created_by=self.salesperson,
         )
-        plan = PaymentPlan.objects.create(
+        self.plan = PaymentPlan.objects.create(
             organization=self.organization,
-            order=order,
+            order=self.order,
             due_date=timezone.localdate() + timedelta(days=15),
             amount=Decimal("2000"),
         )
         Payment.objects.create(
             organization=self.organization,
-            order=order,
-            plan=plan,
+            order=self.order,
+            plan=self.plan,
             received_on=timezone.localdate() + timedelta(days=10),
             amount=Decimal("750"),
             created_by=self.salesperson,
@@ -328,6 +328,64 @@ class SalesReportTests(TestCase):
             ],
         )
 
+    def test_dashboard_supports_tasks_without_a_lead(self):
+        contact = Contact.objects.create(
+            organization=self.organization,
+            full_name="Dashboard contact",
+        )
+        Activity.objects.create(
+            organization=self.organization,
+            contact=contact,
+            customer=self.customer,
+            activity_type=Activity.Type.TASK,
+            subject="Kontakt bilan bog'lanish",
+        )
+        Activity.objects.create(
+            organization=self.organization,
+            customer=self.customer,
+            activity_type=Activity.Type.TASK,
+            subject="Mijoz bilan bog'lanish",
+        )
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dashboard contact")
+        self.assertContains(
+            response,
+            reverse("customers:contact-detail", args=[contact.public_id]),
+        )
+        self.assertContains(
+            response,
+            reverse("customers:detail", args=[self.customer.public_id]),
+        )
+
+    def test_sidebar_context_is_consistent_on_dashboard_and_password_change(self):
+        self.organization.logo = "images/organization/test-logo.png"
+        self.organization.save(update_fields=["logo", "updated_at"])
+        expected_links = (
+            reverse("sales-report"),
+            reverse("accounts:mailbox-list"),
+            reverse("organizations:settings"),
+            reverse("organizations:employees"),
+        )
+
+        for url in (reverse("dashboard"), reverse("accounts:password-change")):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["organization"], self.organization)
+                self.assertContains(response, self.organization.logo.url)
+                for expected_link in expected_links:
+                    self.assertContains(response, expected_link)
+                self.assertContains(response, '<use href="#icon-dashboard"></use>', html=True)
+                self.assertContains(response, '<use href="#icon-customers"></use>', html=True)
+                self.assertContains(response, '<use href="#icon-reports"></use>', html=True)
+                self.assertContains(response, "<span>Dashboard</span>", html=True)
+                self.assertContains(response, 'class="sidebar-toggle"')
+                self.assertContains(response, 'aria-controls="sidebar-navigation"')
+                self.assertContains(response, "js/sidebar.js")
+
     def test_report_filters_by_manager_and_business_direction(self):
         response = self.client.get(
             reverse("sales-report"),
@@ -341,6 +399,40 @@ class SalesReportTests(TestCase):
         self.assertEqual(response.context["total_count"], 3)
         self.assertEqual(response.context["won_count"], 1)
         self.assertEqual(response.context["lost_count"], 1)
+
+    def test_financial_filters_and_debt_aging(self):
+        overdue_plan = PaymentPlan.objects.create(
+            organization=self.organization,
+            order=self.order,
+            due_date=timezone.localdate() - timedelta(days=10),
+            amount=Decimal("600"),
+            notes="Kechikkan test to'lovi",
+        )
+
+        response = self.client.get(
+            reverse("sales-report"),
+            {
+                "customer": self.customer.pk,
+                "currency": "USD",
+                "payment_status": "overdue",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["aging_summary"],
+            [
+                {
+                    "currency": "USD",
+                    "days_1_7": Decimal("0"),
+                    "days_8_30": Decimal("600"),
+                    "days_31_60": Decimal("0"),
+                    "days_60_plus": Decimal("0"),
+                }
+            ],
+        )
+        self.assertEqual(len(response.context["debt_rows"]), 1)
+        self.assertEqual(response.context["debt_rows"][0]["plan"], overdue_plan)
 
     def test_report_excludes_another_organizations_data(self):
         other_organization = Organization.objects.create(

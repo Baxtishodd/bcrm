@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}{{ contact.full_name }} — BCRM{% endblock %}
+{% block heading %}{{ contact.full_name }}{% endblock %}
+
+{% block content %}
+{% url 'customers:contact-list' as contacts_list_url %}
+{% include "shared/page_navigation.html" with back_url=contacts_list_url back_label="Kontaktlarga qaytish" parent_label="Kontaktlar" current_label=contact.full_name %}
+
+<section class="page-actions">
+    <div></div>
+    <div class="button-row">
+        {% if request.crm_permissions.manage_tasks %}<a class="button button-secondary" href="{% url 'tasks:create' %}?contact={{ contact.public_id }}">{% include "shared/icon.html" with name="tasks" %}<span>Vazifa qo'shish</span></a>{% endif %}
+        {% if request.crm_permissions.manage_leads %}<a class="button" href="{% url 'crm:create' %}?contact={{ contact.public_id }}">{% include "shared/icon.html" with name="plus" %}<span>Lead yaratish</span></a>{% endif %}
+    </div>
+</section>
+
+<section class="detail-grid">
+    <article class="panel detail-card">
+        <div class="panel-heading">
+            <div class="contact-detail-heading">
+                {% if contact.avatar %}<img class="contact-detail-avatar" src="{{ contact.avatar.url }}" alt="{{ contact.full_name }} avatari">{% else %}<div class="contact-detail-avatar contact-detail-avatar-fallback" aria-hidden="true">{{ contact.full_name|first|upper }}</div>{% endif %}
+                <div><p class="eyebrow">Kontakt</p><h2>Asosiy ma'lumotlar</h2></div>
+            </div>
+            {% if request.crm_permissions.manage_customers %}<a class="button button-secondary" href="{% url 'customers:contact-update' contact.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>{% endif %}
+        </div>
+        <dl class="details">
+            <div><dt>Turi</dt><dd>{{ contact.get_contact_type_display }}</dd></div>
+            <div><dt>Lavozimi yoki roli</dt><dd>{{ contact.position|default:"—" }}</dd></div>
+            <div><dt>Kompaniya</dt><dd>{% if contact.company %}<a class="table-link" href="{% url 'customers:detail' contact.company.public_id %}">{{ contact.company.name }}</a>{% else %}Mustaqil kontakt{% endif %}</dd></div>
+            <div><dt>Telefon</dt><dd>{{ contact.phone|default:"—" }}</dd></div>
+            <div><dt>Telegram</dt><dd>{{ contact.telegram|default:"—" }}</dd></div>
+            <div><dt>WhatsApp</dt><dd>{{ contact.whatsapp|default:"—" }}</dd></div>
+            <div><dt>Email</dt><dd>{{ contact.email|default:"—" }}</dd></div>
+            <div><dt>Hudud</dt><dd>{{ contact.city|default:contact.country|default:"—" }}</dd></div>
+            <div><dt>Manba</dt><dd>{{ contact.source|default:"—" }}</dd></div>
+            <div><dt>Teglar</dt><dd>{{ contact.tags|default:"—" }}</dd></div>
+            <div><dt>Mas'ul</dt><dd>{% if contact.owner %}{{ contact.owner.get_full_name|default:contact.owner.email }}{% else %}—{% endif %}</dd></div>
+            <div><dt>Holati</dt><dd>{% if contact.is_active %}Faol{% else %}Nofaol{% endif %}{% if contact.is_primary %} · Asosiy kontakt{% endif %}</dd></div>
+            <div><dt>Izohlar</dt><dd>{{ contact.notes|default:"—"|linebreaksbr }}</dd></div>
+        </dl>
+    </article>
+
+    <article class="panel detail-card">
+        <div class="panel-heading"><div><p class="eyebrow">Savdo</p><h2>Bog'langan Leadlar</h2></div></div>
+        <div class="stack-list">
+            {% for lead in leads %}
+            <div class="stack-item">
+                <a class="table-link" href="{% url 'crm:detail' lead.public_id %}"><strong>{{ lead.title }}</strong></a>
+                <span>{{ lead.get_status_display }} · {{ lead.get_business_direction_display }}</span>
+                <small>{{ lead.estimated_value }} {{ lead.currency }}{% if lead.assigned_to %} · {{ lead.assigned_to.get_full_name|default:lead.assigned_to.email }}{% endif %}</small>
+            </div>
+            {% empty %}<p class="empty">Bu kontaktga Lead hali bog'lanmagan.</p>{% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="panel detail-card quotation-history">
+    <div class="panel-heading"><div><p class="eyebrow">Timeline</p><h2>Aloqa tarixi</h2></div></div>
+    {% include "shared/communication_timeline.html" %}
+</section>
+{% endblock %}

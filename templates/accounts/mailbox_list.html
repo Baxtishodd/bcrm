@@ -4,14 +4,14 @@
 {% block heading %}Email akkauntlari{% endblock %}
 
 {% block content %}
-{% include "shared/page_navigation.html" with back_url="/" back_label="Boshqaruv paneliga qaytish" current_label="Email akkauntlari" %}
+{% include "shared/page_navigation.html" with back_url="/" back_label="Dashboardga qaytish" current_label="Email akkauntlari" %}
 <section class="panel">
     <div class="panel-heading">
         <div>
             <p class="eyebrow">Shaxsiy pochta</p>
             <h2>IMAP va SMTP sozlamalari</h2>
         </div>
-        <a class="button" href="{% url 'accounts:mailbox-create' %}">Email ulash</a>
+        <a class="button" href="{% url 'accounts:mailbox-create' %}">{% include "shared/icon.html" with name="plus" %}<span>Email ulash</span></a>
     </div>
     <div class="table-wrap">
         <table>

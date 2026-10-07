@@ -12,20 +12,21 @@
             <option value="completed"{% if status == "completed" %} selected{% endif %}>Bajarilgan</option>
             <option value="all"{% if status == "all" %} selected{% endif %}>Barchasi</option>
         </select>
-        <button class="button button-secondary" type="submit">Ko'rsatish</button>
+        <button class="button button-secondary" type="submit">{% include "shared/icon.html" with name="search" %}<span>Ko'rsatish</span></button>
     </form>
-    {% if request.crm_permissions.manage_tasks %}<a class="button" href="{% url 'tasks:create' %}">Yangi vazifa</a>{% endif %}
+    {% if request.crm_permissions.manage_tasks %}<a class="button" href="{% url 'tasks:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi vazifa</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Vazifa</th><th>Lead / mijoz</th><th>Muddat</th><th>Mas'ul</th><th>Holat</th><th></th></tr></thead>
+            <thead><tr><th>Vazifa</th><th>Lead / mijoz / kontakt</th><th>Muddat</th><th>Mas'ul</th><th>Holat</th><th></th></tr></thead>
             <tbody>
             {% for task in tasks %}
             <tr{% if not task.completed_at and task.due_at and task.due_at < now %} class="row-overdue"{% endif %}>
                 <td><strong>{{ task.subject }}</strong><br><small>{{ task.get_activity_type_display }}</small></td>
                 <td>
                     {% if task.lead %}<a class="table-link" href="{% url 'crm:detail' task.lead.public_id %}">{{ task.lead.title }}</a><br>{% endif %}
+                    {% if task.contact %}<a class="table-link" href="{% url 'customers:contact-detail' task.contact.public_id %}">{{ task.contact.full_name }}</a><br>{% endif %}
                     <small>{% if task.customer %}{{ task.customer }}{% elif task.lead and task.lead.customer %}{{ task.lead.customer }}{% else %}—{% endif %}</small>
                 </td>
                 <td>{{ task.due_at|date:"d.m.Y H:i"|default:"Sanasiz" }}</td>
@@ -39,7 +40,7 @@
                     {% if request.crm_permissions.manage_tasks and not task.completed_at %}
                     <form method="post" action="{% url 'tasks:complete' task.public_id %}">
                         {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        <button class="button button-small" type="submit">Bajarildi</button>
+                        <button class="button button-small" type="submit">{% include "shared/icon.html" with name="check" %}<span>Bajarildi</span></button>
                     </form>
                     {% endif %}
                 </td>

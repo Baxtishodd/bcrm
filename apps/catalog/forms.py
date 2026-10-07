@@ -151,6 +151,7 @@ class PriceListForm(forms.ModelForm):
         model = PriceList
         fields = (
             "number",
+            "version",
             "document_type",
             "title",
             "category",
@@ -183,6 +184,7 @@ class PriceListForm(forms.ModelForm):
         }
         labels = {
             "number": "Hujjat raqami",
+            "version": "Versiya",
             "document_type": "Hujjat turi",
             "title": "Sarlavha",
             "category": "Mahsulot yo'nalishi",

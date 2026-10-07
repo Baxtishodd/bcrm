@@ -12,7 +12,7 @@
     <form class="search" method="get">
         <input type="search" name="q" value="{{ query }}" placeholder="Buyurtma raqami yoki mijoz">
         <select name="status"><option value="">Barcha holatlar</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-        <button class="button button-secondary" type="submit">Qidirish</button>
+        <button class="button button-secondary" type="submit">{% include "shared/icon.html" with name="search" %}<span>Qidirish</span></button>
     </form>
 </section>
 <section class="panel"><div class="table-wrap"><table>

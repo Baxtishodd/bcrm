@@ -88,6 +88,7 @@ def employee_list(request):
 def employee_create(request):
     form = EmployeeCreateForm(
         request.POST or None,
+        request.FILES or None,
         organization=request.organization,
     )
     if form.is_valid():
@@ -122,6 +123,7 @@ def employee_update(request, public_id):
         return HttpResponseForbidden("Tashkilot egasini faqat egasining o'zi boshqaradi.")
     form = EmployeeUpdateForm(
         request.POST or None,
+        request.FILES or None,
         membership=membership,
         actor_membership=request.membership,
     )

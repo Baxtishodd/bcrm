@@ -3,10 +3,11 @@ from urllib.parse import quote
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Max, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
@@ -22,6 +23,7 @@ from .forms import (
 )
 from .models import (
     PriceList,
+    PriceListLine,
     Product,
     WovenFabricSpecification,
     YarnSpecification,
@@ -269,6 +271,71 @@ def offer_update(request, public_id):
             "organization": request.organization,
         },
     )
+
+
+@login_required
+@organization_required
+@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@require_POST
+def offer_create_version(request, public_id):
+    source = get_object_or_404(
+        PriceList.objects.prefetch_related("lines"),
+        public_id=public_id,
+        organization=request.organization,
+    )
+    with transaction.atomic():
+        last_version = (
+            PriceList.objects.filter(
+                organization=request.organization,
+                document_type=source.document_type,
+                number=source.number,
+            ).aggregate(max_version=Max("version"))["max_version"]
+            or 0
+        )
+        new_version = PriceList.objects.create(
+            organization=request.organization,
+            number=source.number,
+            version=last_version + 1,
+            document_type=source.document_type,
+            title=source.title,
+            category=source.category,
+            issue_date=timezone.localdate(),
+            valid_until=None,
+            currency=source.currency,
+            incoterm=source.incoterm,
+            delivery_place=source.delivery_place,
+            incoterms_version=source.incoterms_version,
+            payment_terms=source.payment_terms,
+            alternative_delivery_terms=source.alternative_delivery_terms,
+            language=source.language,
+            status=PriceList.Status.DRAFT,
+            notes=source.notes,
+            document_intro=source.document_intro,
+            document_footer=source.document_footer,
+            created_by=request.user,
+        )
+        PriceListLine.objects.bulk_create(
+            [
+                PriceListLine(
+                    organization=request.organization,
+                    price_list=new_version,
+                    product=line.product,
+                    description_snapshot=line.description_snapshot,
+                    available_quantity=line.available_quantity,
+                    unit=line.unit,
+                    unit_price=line.unit_price,
+                    planned_loading_date=line.planned_loading_date,
+                    minimum_order_quantity=line.minimum_order_quantity,
+                    sort_order=line.sort_order,
+                )
+                for line in source.lines.all()
+            ]
+        )
+    messages.success(
+        request,
+        f"{source.number} hujjatining v{new_version.version} qoralamasi yaratildi.",
+    )
+    return redirect("catalog:offer-document-edit", public_id=new_version.public_id)
 
 
 @login_required

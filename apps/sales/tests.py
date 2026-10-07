@@ -10,7 +10,14 @@ from django.utils import timezone
 from pypdf import PdfReader
 
 from apps.accounts.models import MailboxAccount, User
-from apps.catalog.models import Color, Product, ProductVariant, Size
+from apps.catalog.models import (
+    Color,
+    PriceList,
+    PriceListLine,
+    Product,
+    ProductVariant,
+    Size,
+)
 from apps.common.models import AuditLog
 from apps.crm.models import Activity, Lead, PipelineStage
 from apps.customers.models import Contact, CustomerCompany
@@ -577,6 +584,80 @@ class LeadQuotationWorkflowTests(TestCase):
         self.assertEqual(self.lead.status, Lead.Status.WON)
         self.assertEqual(self.lead.stage, self.won_stage)
 
+    def test_active_price_list_price_is_copied_to_quotation_line(self):
+        self.create_quotation_from_lead()
+        quotation = Quotation.objects.get(lead=self.lead)
+        price_list = PriceList.objects.create(
+            organization=self.organization,
+            number="PL-KNIT",
+            version=2,
+            category=Product.Category.KNITTED_FABRIC,
+            currency="USD",
+            status=PriceList.Status.ACTIVE,
+            issue_date=timezone.localdate(),
+            valid_until=timezone.localdate() + timedelta(days=10),
+        )
+        PriceListLine.objects.create(
+            organization=self.organization,
+            price_list=price_list,
+            product=self.product,
+            unit=Product.Unit.KILOGRAM,
+            unit_price=Decimal("3.1500"),
+            minimum_order_quantity=Decimal("100"),
+        )
+
+        response = self.client.post(
+            reverse("sales:line-create", args=[quotation.public_id]),
+            {
+                "product": self.product.pk,
+                "variant": "",
+                "description": "",
+                "quantity": "250",
+                "unit_price": "",
+                "price_override_reason": "",
+            },
+        )
+
+        if response.status_code == 200:
+            self.fail(response.context["form"].errors.as_json())
+        self.assertRedirects(response, reverse("sales:detail", args=[quotation.public_id]))
+        line = quotation.lines.get()
+        self.assertEqual(line.unit_price, Decimal("3.15"))
+        self.assertEqual(line.price_source, QuotationLine.PriceSource.PRICE_LIST)
+        self.assertEqual(line.source_price_list, price_list)
+        self.assertEqual(line.source_unit_price, Decimal("3.1500"))
+
+    def test_manual_price_override_requires_and_saves_reason(self):
+        self.create_quotation_from_lead()
+        quotation = Quotation.objects.get(lead=self.lead)
+        url = reverse("sales:line-create", args=[quotation.public_id])
+        payload = {
+            "product": self.product.pk,
+            "variant": "",
+            "description": "",
+            "quantity": "10",
+            "unit_price": "3.00",
+            "price_override_reason": "",
+        }
+
+        response = self.client.post(url, payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Avtomatik narx o&#x27;zgartirilsa")
+        self.assertFalse(quotation.lines.exists())
+
+        payload["price_override_reason"] = "Sinov partiyasi uchun maxsus chegirma"
+        response = self.client.post(url, payload)
+
+        self.assertRedirects(response, reverse("sales:detail", args=[quotation.public_id]))
+        line = quotation.lines.get()
+        self.assertEqual(line.price_source, QuotationLine.PriceSource.MANUAL)
+        self.assertEqual(line.source_unit_price, self.product.list_price)
+        self.assertEqual(
+            line.price_override_reason,
+            "Sinov partiyasi uchun maxsus chegirma",
+        )
+
     def test_complete_lead_quotation_pdf_order_flow(self):
         self.create_quotation_from_lead()
         quotation = Quotation.objects.get(lead=self.lead)
@@ -756,6 +837,7 @@ class LeadQuotationWorkflowTests(TestCase):
                 "lines-0-description": "Updated description",
                 "lines-0-quantity": "3",
                 "lines-0-unit_price": "3.50",
+                "lines-0-price_override_reason": "Mijoz uchun kelishilgan narx",
             },
         )
 

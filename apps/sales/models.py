@@ -121,6 +121,11 @@ class Quotation(OrganizationScopedModel):
 
 
 class QuotationLine(OrganizationScopedModel):
+    class PriceSource(models.TextChoices):
+        CATALOG = "catalog", "Mahsulot katalogi"
+        PRICE_LIST = "price_list", "Price-list"
+        MANUAL = "manual", "Qo'lda kiritilgan"
+
     quotation = models.ForeignKey(
         Quotation,
         on_delete=models.CASCADE,
@@ -141,9 +146,28 @@ class QuotationLine(OrganizationScopedModel):
     )
     unit_price = models.DecimalField(
         max_digits=18,
-        decimal_places=2,
+        decimal_places=4,
         validators=[MinValueValidator(Decimal("0"))],
     )
+    price_source = models.CharField(
+        max_length=20,
+        choices=PriceSource.choices,
+        default=PriceSource.MANUAL,
+    )
+    source_price_list = models.ForeignKey(
+        "catalog.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="quotation_lines",
+    )
+    source_unit_price = models.DecimalField(
+        max_digits=18,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
+    price_override_reason = models.CharField(max_length=255, blank=True)
 
     @property
     def line_total(self):
@@ -439,7 +463,7 @@ class OrderLine(OrganizationScopedModel):
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT)
     unit_price = models.DecimalField(
         max_digits=18,
-        decimal_places=2,
+        decimal_places=4,
         default=0,
         validators=[MinValueValidator(Decimal("0"))],
     )

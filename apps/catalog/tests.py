@@ -232,6 +232,67 @@ class PriceListTests(TestCase):
         self.assertContains(response, visible.number)
         self.assertNotContains(response, "PRIVATE-51")
 
+    def test_activating_new_version_archives_previous_matching_version(self):
+        previous = PriceList.objects.create(
+            organization=self.organization,
+            number="PL-KNIT",
+            version=1,
+            category=Product.Category.KNITTED_FABRIC,
+            currency="USD",
+            status=PriceList.Status.ACTIVE,
+        )
+
+        current = PriceList.objects.create(
+            organization=self.organization,
+            number="PL-KNIT",
+            version=2,
+            category=Product.Category.KNITTED_FABRIC,
+            currency="USD",
+            status=PriceList.Status.ACTIVE,
+        )
+
+        previous.refresh_from_db()
+        self.assertEqual(previous.status, PriceList.Status.ARCHIVED)
+        self.assertEqual(current.status, PriceList.Status.ACTIVE)
+        self.assertIn("v2", str(current))
+
+    def test_new_version_action_copies_document_and_lines_as_draft(self):
+        product = Product.objects.create(
+            organization=self.organization,
+            article="VERSION-COPY",
+            name="Versioned fabric",
+            unit=Product.Unit.KILOGRAM,
+        )
+        source = PriceList.objects.create(
+            organization=self.organization,
+            number="PL-COPY",
+            version=1,
+            category=Product.Category.KNITTED_FABRIC,
+            currency="USD",
+            status=PriceList.Status.ACTIVE,
+        )
+        PriceListLine.objects.create(
+            organization=self.organization,
+            price_list=source,
+            product=product,
+            unit=Product.Unit.KILOGRAM,
+            unit_price=Decimal("2.9500"),
+        )
+
+        response = self.client.post(
+            reverse("catalog:offer-create-version", args=[source.public_id])
+        )
+
+        copied = PriceList.objects.get(number="PL-COPY", version=2)
+        self.assertRedirects(
+            response,
+            reverse("catalog:offer-document-edit", args=[copied.public_id]),
+        )
+        self.assertEqual(copied.status, PriceList.Status.DRAFT)
+        self.assertEqual(copied.created_by, self.user)
+        self.assertEqual(copied.lines.get().product, product)
+        self.assertEqual(copied.lines.get().unit_price, Decimal("2.9500"))
+
     def test_offer_document_editor_updates_document_and_lines(self):
         product = Product.objects.create(
             organization=self.organization,
@@ -259,6 +320,7 @@ class PriceListTests(TestCase):
             reverse("catalog:offer-document-edit", args=[offer.public_id]),
             {
                 "number": "51/Y",
+                "version": "1",
                 "document_type": PriceList.DocumentType.PRICE_LIST,
                 "title": "Export yarn price list",
                 "category": Product.Category.YARN,

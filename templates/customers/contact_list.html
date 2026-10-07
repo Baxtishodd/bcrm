@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Kontaktlar — BCRM{% endblock %}
+{% block heading %}Kontaktlar{% endblock %}
+
+{% block content %}
+<nav class="section-tabs" aria-label="Kontaktlar doirasi">
+    <a{% if list_scope == "all" %} class="active" aria-current="page"{% endif %} href="{{ contacts_all_url }}">Barcha kontaktlar</a>
+    <a{% if list_scope == "mine" %} class="active" aria-current="page"{% endif %} href="{{ contacts_mine_url }}">Mening kontaktlarim</a>
+</nav>
+{% include "shared/list_filters.html" with filter_scope=list_scope filter_view_mode=view_mode filter_panel_title="Kontaktlarni filtrlash" %}
+
+<section class="panel contact-results-panel">
+    <header class="contact-results-toolbar">
+        <div>
+            <p class="eyebrow">Natijalar</p>
+            <h2>Kontaktlar ro‘yxati</h2>
+            <span>{{ paginator.count }} ta kontakt topildi</span>
+        </div>
+        {% include "shared/view_switcher.html" %}
+    </header>
+    {% if view_mode == "cards" %}
+    <div class="contact-card-grid">
+        {% for contact in contacts %}
+        <article class="contact-card">
+            <div class="contact-card-heading">
+                {% if contact.avatar %}
+                <img class="contact-card-avatar contact-card-avatar-image" src="{{ contact.avatar.url }}" alt="{{ contact.full_name }} avatari">
+                {% else %}
+                <div class="contact-card-avatar" aria-hidden="true">{{ contact.full_name|first|upper }}</div>
+                {% endif %}
+                <div class="contact-card-title">
+                    <a href="{% url 'customers:contact-detail' contact.public_id %}">{{ contact.full_name }}</a>
+                    <p>{{ contact.position|default:"Lavozim ko'rsatilmagan" }}</p>
+                </div>
+                {% if contact.is_active %}<span class="badge badge-success">Faol</span>{% else %}<span class="badge">Nofaol</span>{% endif %}
+            </div>
+            <dl class="contact-card-details">
+                <div><dt>Turi</dt><dd>{{ contact.get_contact_type_display }}</dd></div>
+                <div><dt>Kompaniya</dt><dd>{% if contact.company %}<a class="table-link" href="{% url 'customers:detail' contact.company.public_id %}">{{ contact.company.name }}</a>{% else %}Mustaqil kontakt{% endif %}</dd></div>
+                <div><dt>Aloqa</dt><dd>{{ contact.phone|default:contact.whatsapp|default:contact.email|default:"—" }}</dd></div>
+                <div><dt>Hudud</dt><dd>{{ contact.city|default:contact.country|default:"—" }}</dd></div>
+            </dl>
+            <div class="contact-card-footer">
+                <span>{% if contact.owner %}{{ contact.owner.get_full_name|default:contact.owner.email }}{% else %}Mas'ul biriktirilmagan{% endif %}</span>
+                <a class="contact-card-open" href="{% url 'customers:contact-detail' contact.public_id %}" aria-label="{{ contact.full_name }} kontaktini ochish">Ochish →</a>
+            </div>
+        </article>
+        {% empty %}
+        <div class="empty contact-card-empty">Kontaktlar topilmadi.</div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Kontakt</th><th>Turi</th><th>Kompaniya</th><th>Aloqa</th><th>Hudud</th><th>Mas'ul</th><th>Holati</th></tr>
+            </thead>
+            <tbody>
+            {% for contact in contacts %}
+                <tr>
+                    <td>
+                        <a class="table-link" href="{% url 'customers:contact-detail' contact.public_id %}">{{ contact.full_name }}</a>
+                        <br><small>{{ contact.position|default:"Lavozim ko'rsatilmagan" }}</small>
+                    </td>
+                    <td>{{ contact.get_contact_type_display }}</td>
+                    <td>
+                        {% if contact.company %}<a class="table-link" href="{% url 'customers:detail' contact.company.public_id %}">{{ contact.company.name }}</a>{% else %}Mustaqil kontakt{% endif %}
+                    </td>
+                    <td>{{ contact.phone|default:contact.whatsapp|default:contact.email|default:"—" }}</td>
+                    <td>{{ contact.city|default:contact.country|default:"—" }}</td>
+                    <td>{% if contact.owner %}{{ contact.owner.get_full_name|default:contact.owner.email }}{% else %}—{% endif %}</td>
+                    <td>{% if contact.is_active %}<span class="badge badge-success">Faol</span>{% else %}<span class="badge">Nofaol</span>{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="empty">Kontaktlar topilmadi.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

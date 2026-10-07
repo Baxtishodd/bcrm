@@ -5,58 +5,62 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}BCRM{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260930-3">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261005-3">
 </head>
 <body>
+{% include "shared/icon_sprite.html" %}
 <div class="app-shell">
     <aside class="sidebar">
-        <a class="brand" href="{% url 'dashboard' %}">
-            {% if organization.sidebar_logo %}
-            <img class="brand-logo brand-logo-inverse" src="{{ organization.sidebar_logo.url }}" alt="{{ organization.name }}">
-            {% elif organization.logo %}
-            <span class="brand-logo-surface">
-                <img class="brand-logo" src="{{ organization.logo.url }}" alt="{{ organization.name }}">
-            </span>
-            {% else %}
-            BCRM<span>textile</span>
-            {% endif %}
-        </a>
-        <nav>
+        <div class="sidebar-header">
+            <a class="brand" href="{% url 'dashboard' %}">
+                {% if organization.sidebar_logo %}
+                <img class="brand-logo brand-logo-inverse" src="{{ organization.sidebar_logo.url }}" alt="{{ organization.name }}">
+                {% elif organization.logo %}
+                <span class="brand-logo-surface">
+                    <img class="brand-logo" src="{{ organization.logo.url }}" alt="{{ organization.name }}">
+                </span>
+                {% else %}
+                <span class="brand-name">BCRM</span><span class="brand-suffix">textile</span>
+                {% endif %}
+            </a>
+            <button class="sidebar-toggle" type="button" aria-controls="sidebar-navigation" aria-expanded="true" aria-label="Sidebarni yig‘ish" title="Sidebarni yig‘ish">
+                {% include "shared/icon.html" with name="arrow-left" %}
+            </button>
+        </div>
+        <nav id="sidebar-navigation">
             <a{% if request.resolver_match.url_name == 'dashboard' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'dashboard' %}">Boshqaruv paneli</a>
-            <a{% if request.resolver_match.namespace == 'customers' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'customers:list' %}">Mijozlar</a>
+               href="{% url 'dashboard' %}">{% include "shared/icon.html" with name="dashboard" %}<span>Dashboard</span></a>
+            <a{% if request.resolver_match.namespace == 'customers' and 'contact' not in request.resolver_match.url_name %} class="active" aria-current="page"{% endif %}
+               href="{% url 'customers:list' %}">{% include "shared/icon.html" with name="customers" %}<span>Mijozlar</span></a>
+            <a{% if request.resolver_match.namespace == 'customers' and 'contact' in request.resolver_match.url_name %} class="active" aria-current="page"{% endif %}
+               href="{% url 'customers:contact-list' %}">{% include "shared/icon.html" with name="contacts" %}<span>Kontaktlar</span></a>
             <a{% if request.resolver_match.namespace == 'crm' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'crm:list' %}">Leadlar</a>
+               href="{% url 'crm:list' %}">{% include "shared/icon.html" with name="leads" %}<span>Leadlar</span></a>
             <a{% if request.resolver_match.namespace == 'tasks' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'tasks:list' %}">Vazifalar</a>
+               href="{% url 'tasks:list' %}">{% include "shared/icon.html" with name="tasks" %}<span>Vazifalar</span></a>
             <a{% if request.resolver_match.namespace == 'catalog' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'catalog:list' %}">Mahsulotlar</a>
+               href="{% url 'catalog:list' %}">{% include "shared/icon.html" with name="products" %}<span>Mahsulotlar</span></a>
             <a{% if request.resolver_match.namespace == 'sales' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'sales:list' %}">Savdo</a>
+               href="{% url 'sales:list' %}">{% include "shared/icon.html" with name="sales" %}<span>Savdo</span></a>
             {% if request.crm_permissions.manage_organization %}
             <a{% if request.resolver_match.url_name == 'sales-report' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'sales-report' %}">Hisobotlar</a>
+               href="{% url 'sales-report' %}">{% include "shared/icon.html" with name="reports" %}<span>Hisobotlar</span></a>
             {% endif %}
             {% if request.crm_permissions.manage_mailbox %}
             <a{% if request.resolver_match.namespace == 'accounts' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'accounts:mailbox-list' %}">Email sozlamalari</a>
+               href="{% url 'accounts:mailbox-list' %}">{% include "shared/icon.html" with name="email" %}<span>Email sozlamalari</span></a>
             {% endif %}
             {% if request.crm_permissions.manage_organization %}
             <a{% if request.resolver_match.url_name == 'settings' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'organizations:settings' %}">Tashkilot sozlamalari</a>
+               href="{% url 'organizations:settings' %}">{% include "shared/icon.html" with name="settings" %}<span>Tashkilot sozlamalari</span></a>
             <a{% if request.resolver_match.url_name == 'employees' or request.resolver_match.url_name == 'employee-create' or request.resolver_match.url_name == 'employee-update' %} class="active" aria-current="page"{% endif %}
-               href="{% url 'organizations:employees' %}">Xodimlar</a>
-            {% endif %}
-            {% if user.is_staff %}
-            <a{% if request.resolver_match.namespace == 'admin' %} class="active" aria-current="page"{% endif %}
-               href="/admin/">Tizim sozlamalari</a>
+               href="{% url 'organizations:employees' %}">{% include "shared/icon.html" with name="employees" %}<span>Xodimlar</span></a>
             {% endif %}
         </nav>
         {% if user.is_authenticated %}
         <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button class="logout" type="submit">Chiqish</button>
+            <button class="logout" type="submit">{% include "shared/icon.html" with name="logout" %}<span>Chiqish</span></button>
         </form>
         {% endif %}
     </aside>
@@ -66,9 +70,10 @@
                 <p class="eyebrow">
                     {% if organization %}{{ organization.name }}{% else %}BCRM{% endif %}
                 </p>
-                <h1>{% block heading %}Boshqaruv paneli{% endblock %}</h1>
+                <h1>{% block heading %}Dashboard{% endblock %}</h1>
             </div>
             <a class="user-chip" href="{% url 'accounts:password-change' %}" title="Parolni almashtirish">
+                {% include "shared/icon.html" with name="user" %}
                 {{ user.get_full_name|default:user.email }}
             </a>
         </header>
@@ -84,6 +89,9 @@
 </div>
     <script src="{% static 'js/smart-select.js' %}?v=20260930-4" defer></script>
     <script src="{% static 'js/form-submit.js' %}?v=20260930-1" defer></script>
+    <script src="{% static 'js/view-switcher.js' %}?v=20261003-1" defer></script>
+    <script src="{% static 'js/avatar-editor.js' %}?v=20261003-2" defer></script>
+    <script src="{% static 'js/sidebar.js' %}?v=20261005-1" defer></script>
 {% block extra_scripts %}{% endblock %}
 </body>
 </html>

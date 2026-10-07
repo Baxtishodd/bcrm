@@ -45,6 +45,7 @@
 
         <div class="document-meta-grid document-meta-wide">
             <label><span>{{ form.number.label }}</span>{{ form.number }}{% for error in form.number.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</label>
+            <label><span>{{ form.version.label }}</span>{{ form.version }}{% for error in form.version.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</label>
             <label><span>{{ form.document_type.label }}</span>{{ form.document_type }}</label>
             <label><span>{{ form.category.label }}</span>{{ form.category }}</label>
             <label><span>{{ form.language.label }}</span>{{ form.language }}</label>

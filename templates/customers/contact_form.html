@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — BCRM{% endblock %}
+{% block heading %}{{ page_title }}{% endblock %}
+
+{% block content %}
+{% include "shared/page_navigation.html" with back_url=cancel_url back_label="Ortga" current_label=page_title %}
+
+<form method="post" enctype="multipart/form-data" class="contact-form-layout">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors contact-form-errors">{{ form.non_field_errors }}</div>{% endif %}
+
+    <aside class="contact-avatar-panel">
+        <p class="eyebrow">Profil rasmi</p>
+        <div class="contact-avatar-preview" data-avatar-preview>
+            {% if form.instance.avatar %}<img src="{{ form.instance.avatar.url }}" alt="{{ form.instance.full_name }} avatari">{% else %}<span>{{ form.instance.full_name|default:"K"|first|upper }}</span>{% endif %}
+        </div>
+        <p>Kontaktni tez tanish uchun yuz rasmi yoki profil fotosini yuklang.</p>
+        <div class="contact-avatar-upload">{{ form.avatar }}</div>
+        <label class="button button-secondary contact-avatar-select" for="{{ form.avatar.id_for_label }}">Rasm tanlash</label>
+        {% if form.avatar.help_text %}<small>{{ form.avatar.help_text }}</small>{% endif %}
+        {% for error in form.avatar.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </aside>
+
+    <section class="panel contact-form-panel">
+        <div class="contact-form-intro">
+            <div><p class="eyebrow">Kontakt kartasi</p><h2>Asosiy ma'lumotlarni kiriting</h2></div>
+            <span>Majburiy maydonlar * bilan belgilangan</span>
+        </div>
+
+        <div class="contact-form-section">
+            <h3>Kimligi va mas'ul xodim</h3>
+            <div class="form-grid">
+                <div class="form-field"><label for="{{ form.full_name.id_for_label }}">{{ form.full_name.label }} <span class="required-mark" aria-hidden="true">*</span></label>{{ form.full_name }}{% for error in form.full_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.position.label_tag }}{{ form.position }}{% for error in form.position.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.contact_type.label_tag }}{{ form.contact_type }}{% for error in form.contact_type.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.company.label_tag }}{{ form.company }}{% for error in form.company.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+            </div>
+        </div>
+
+        <div class="contact-form-section">
+            <h3>Aloqa kanallari</h3>
+            <div class="form-grid">
+                <div class="form-field">{{ form.phone.label_tag }}{{ form.phone }}{% for error in form.phone.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.email.label_tag }}{{ form.email }}{% for error in form.email.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.telegram.label_tag }}{{ form.telegram }}{% for error in form.telegram.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.whatsapp.label_tag }}{{ form.whatsapp }}{% for error in form.whatsapp.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+            </div>
+        </div>
+
+        <div class="contact-form-section">
+            <h3>Qo'shimcha ma'lumotlar</h3>
+            <div class="form-grid">
+                <div class="form-field">{{ form.country.label_tag }}{{ form.country }}{% for error in form.country.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.city.label_tag }}{{ form.city }}{% for error in form.city.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.source.label_tag }}{{ form.source }}{% for error in form.source.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field">{{ form.tags.label_tag }}{{ form.tags }}{% for error in form.tags.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+                <div class="form-field full">{{ form.notes.label_tag }}{{ form.notes }}{% for error in form.notes.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+            </div>
+        </div>
+
+        <div class="contact-form-toggles">
+            <label>{{ form.is_primary }} <span>Asosiy kontakt</span></label>
+            <label>{{ form.is_active }} <span>Faol kontakt</span></label>
+        </div>
+        <div class="form-actions contact-form-actions">
+            <a class="button button-secondary" href="{{ cancel_url }}">{% include "shared/icon.html" with name="close" %}<span>Bekor qilish</span></a>
+            <button class="button" type="submit">{% include "shared/icon.html" with name="save" %}<span>Saqlash</span></button>
+        </div>
+    </section>
+</form>
+{% endblock %}

@@ -16,6 +16,11 @@ urlpatterns = [
         name="offer-update",
     ),
     path(
+        "offers/<uuid:public_id>/new-version/",
+        views.offer_create_version,
+        name="offer-create-version",
+    ),
+    path(
         "offers/<uuid:public_id>/document/",
         views.offer_document_edit,
         name="offer-document-edit",

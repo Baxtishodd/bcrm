@@ -123,6 +123,17 @@ class EmployeeCreateForm(forms.Form):
     last_name = forms.CharField(label="Familiyasi", max_length=150, required=False)
     email = forms.EmailField(label="Email / login")
     phone = forms.CharField(label="Telefon", max_length=30, required=False)
+    avatar = forms.ImageField(
+        label="Xodim avatari",
+        required=False,
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-avatar-editor": "true",
+            }
+        ),
+        help_text="JPEG, PNG yoki WebP. Maksimal 1 MB; rasm tahrirlanib optimallashtiriladi.",
+    )
     role = forms.ChoiceField(label="Lavozim")
     branch = forms.ModelChoiceField(
         label="Filial",
@@ -192,8 +203,12 @@ class EmployeeCreateForm(forms.Form):
                 first_name=self.cleaned_data["first_name"],
                 last_name=self.cleaned_data["last_name"],
                 phone=self.cleaned_data["phone"],
+                avatar=self.cleaned_data["avatar"],
                 must_change_password=True,
             )
+        elif self.cleaned_data["avatar"]:
+            user.avatar = self.cleaned_data["avatar"]
+            user.save(update_fields=["avatar"])
         return Membership.objects.create(
             organization=self.organization,
             user=user,
@@ -207,6 +222,17 @@ class EmployeeUpdateForm(forms.Form):
     last_name = forms.CharField(label="Familiyasi", max_length=150, required=False)
     email = forms.EmailField(label="Email / login", disabled=True)
     phone = forms.CharField(label="Telefon", max_length=30, required=False)
+    avatar = forms.ImageField(
+        label="Xodim avatari",
+        required=False,
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": "image/jpeg,image/png,image/webp",
+                "data-avatar-editor": "true",
+            }
+        ),
+        help_text="Yangi rasm tanlansa, avval kesish va tahrirlash oynasi ochiladi.",
+    )
     role = forms.ChoiceField(label="Lavozim")
     branch = forms.ModelChoiceField(
         label="Filial",
@@ -260,7 +286,11 @@ class EmployeeUpdateForm(forms.Form):
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
         user.phone = self.cleaned_data["phone"]
-        user.save(update_fields=["first_name", "last_name", "phone"])
+        update_fields = ["first_name", "last_name", "phone"]
+        if self.cleaned_data["avatar"]:
+            user.avatar = self.cleaned_data["avatar"]
+            update_fields.append("avatar")
+        user.save(update_fields=update_fields)
         self.membership.role = self.cleaned_data["role"]
         self.membership.branch = self.cleaned_data["branch"]
         self.membership.is_active = self.cleaned_data["is_active"]

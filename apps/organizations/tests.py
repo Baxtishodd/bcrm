@@ -181,7 +181,22 @@ class EmployeeManagementTests(TestCase):
             user=self.owner,
             role=Membership.Role.OWNER,
         )
+        self.media_directory = TemporaryDirectory()
+        self.media_override = override_settings(MEDIA_ROOT=self.media_directory.name)
+        self.media_override.enable()
+        self.addCleanup(self.media_override.disable)
+        self.addCleanup(self.media_directory.cleanup)
         self.client.force_login(self.owner)
+
+    @staticmethod
+    def avatar_upload():
+        output = BytesIO()
+        Image.new("RGB", (1800, 1200), color=(24, 116, 102)).save(
+            output,
+            format="JPEG",
+            quality=90,
+        )
+        return SimpleUploadedFile("employee.jpg", output.getvalue(), content_type="image/jpeg")
 
     def employee_data(self, **overrides):
         data = {
@@ -215,6 +230,38 @@ class EmployeeManagementTests(TestCase):
                 is_active=True,
             ).exists()
         )
+
+    def test_employee_avatar_is_saved_and_list_uses_it(self):
+        response = self.client.post(
+            reverse("organizations:employee-create"),
+            self.employee_data(avatar=self.avatar_upload()),
+        )
+
+        self.assertRedirects(response, reverse("organizations:employees"))
+        employee = User.objects.get(email="sardor@example.com")
+        self.assertTrue(employee.avatar.name.startswith("images/user/"))
+        with Image.open(employee.avatar.path) as stored_image:
+            self.assertLessEqual(stored_image.width, 1600)
+            self.assertLessEqual(stored_image.height, 1600)
+        list_response = self.client.get(reverse("organizations:employees"))
+        self.assertContains(list_response, employee.avatar.url)
+
+    def test_employee_form_enables_avatar_editor_and_initial_fallback(self):
+        response = self.client.get(reverse("organizations:employee-create"))
+        employee = User.objects.create_user(
+            email="letter@example.com",
+            password="test-password",
+            first_name="Letter",
+        )
+        Membership.objects.create(
+            organization=self.organization,
+            user=employee,
+            role=Membership.Role.SALES,
+        )
+        list_response = self.client.get(reverse("organizations:employees"))
+
+        self.assertContains(response, 'data-avatar-editor="true"')
+        self.assertContains(list_response, ">L</span>")
 
     def test_new_employee_completes_secure_first_login_flow(self):
         create_response = self.client.post(

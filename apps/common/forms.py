@@ -1,7 +1,9 @@
 from django import forms
 
 from apps.accounts.models import User
+from apps.common.choices import Currency
 from apps.crm.models import Lead
+from apps.customers.models import CustomerCompany
 
 
 class ListFilterForm(forms.Form):
@@ -30,6 +32,13 @@ class ListFilterForm(forms.Form):
 
 
 class SalesReportFilterForm(forms.Form):
+    PAYMENT_STATUS_CHOICES = (
+        ("", "Barcha to'lov holatlari"),
+        ("overdue", "Muddati o'tgan"),
+        ("planned", "Rejada"),
+        ("partial", "Qisman to'langan"),
+        ("paid", "To'langan"),
+    )
     date_from = forms.DateField(
         label="Boshlanish sanasi",
         required=False,
@@ -46,6 +55,18 @@ class SalesReportFilterForm(forms.Form):
         required=False,
         empty_label="Barcha menejerlar",
     )
+    customer = forms.ModelChoiceField(
+        label="Mijoz",
+        queryset=CustomerCompany.objects.none(),
+        required=False,
+        empty_label="Barcha mijozlar",
+    )
+    currency = forms.ChoiceField(label="Valyuta", required=False)
+    payment_status = forms.ChoiceField(
+        label="To'lov holati",
+        required=False,
+        choices=PAYMENT_STATUS_CHOICES,
+    )
     business_direction = forms.ChoiceField(
         label="Yo'nalish",
         required=False,
@@ -57,6 +78,11 @@ class SalesReportFilterForm(forms.Form):
             memberships__organization=organization,
             memberships__is_active=True,
         ).distinct()
+        self.fields["customer"].queryset = CustomerCompany.objects.filter(
+            organization=organization,
+            is_active=True,
+        )
+        self.fields["currency"].choices = [("", "Barcha valyutalar"), *Currency.choices]
         self.fields["business_direction"].choices = [
             ("", "Barcha yo'nalishlar"),
             *Lead.BusinessDirection.choices,

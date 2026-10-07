@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+from apps.common.images import OptimizedImageField
 from apps.common.models import OrganizationScopedModel
 
 
@@ -74,21 +75,56 @@ class CustomerCompany(OrganizationScopedModel):
 
 
 class Contact(OrganizationScopedModel):
+    class Type(models.TextChoices):
+        CUSTOMER = "customer", "Mijoz vakili"
+        PROSPECT = "prospect", "Potensial mijoz"
+        SUPPLIER = "supplier", "Yetkazib beruvchi"
+        PARTNER = "partner", "Hamkor"
+        GOVERNMENT = "government", "Davlat tashkiloti vakili"
+        AGENT = "agent", "Agent"
+        CONSULTANT = "consultant", "Maslahatchi"
+        OTHER = "other", "Boshqa"
+
     company = models.ForeignKey(
         CustomerCompany,
-        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="contacts",
     )
+    contact_type = models.CharField(
+        max_length=20,
+        choices=Type.choices,
+        default=Type.CUSTOMER,
+    )
     full_name = models.CharField(max_length=160)
+    avatar = OptimizedImageField(blank=True)
     position = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=30, blank=True)
     telegram = models.CharField(max_length=80, blank=True)
     whatsapp = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
+    country = models.CharField(max_length=80, blank=True)
+    city = models.CharField(max_length=80, blank=True)
+    source = models.CharField(max_length=100, blank=True)
+    tags = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="owned_contacts",
+    )
     is_primary = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["full_name"]
+        indexes = [
+            models.Index(fields=["organization", "contact_type"]),
+            models.Index(fields=["organization", "owner"]),
+        ]
 
     def __str__(self):
         return self.full_name

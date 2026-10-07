@@ -9,12 +9,16 @@ from django.utils import timezone
 
 from apps.crm.models import Activity, Lead
 from apps.customers.models import CustomerCompany
-from apps.organizations.models import Membership
 from apps.sales.models import Payment, PaymentPlan, Quotation, SalesOrder
 
 from .forms import SalesReportFilterForm
 from .permissions import OrganizationPermission, organization_permission_required
 from .tenancy import organization_required
+
+
+@login_required
+def factory_3d(request):
+    return render(request, "factory/scene.html")
 
 
 def build_cash_forecast(payment_plans, today):
@@ -43,15 +47,19 @@ def build_cash_forecast(payment_plans, today):
     ]
 
 
+def payment_status_code(plan):
+    if plan.balance <= 0:
+        return "paid"
+    if plan.received_amount > 0:
+        return "partial"
+    if plan.due_date < timezone.localdate():
+        return "overdue"
+    return "planned"
+
+
 @login_required
 def dashboard(request):
-    membership = (
-        Membership.objects.select_related("organization")
-        .filter(user=request.user, is_active=True)
-        .first()
-    )
-    organization = membership.organization if membership else None
-    request.membership = membership
+    organization = request.organization
     leads = Lead.objects.none()
     customers = CustomerCompany.objects.none()
     tasks = Activity.objects.none()
@@ -67,6 +75,8 @@ def dashboard(request):
         customers = CustomerCompany.objects.filter(organization=organization)
         tasks = Activity.objects.filter(organization=organization).select_related(
             "lead",
+            "customer",
+            "contact",
             "assigned_to",
         )
         quotations = Quotation.objects.filter(organization=organization).prefetch_related(
@@ -140,12 +150,20 @@ def sales_report(request):
     leads = Lead.objects.filter(organization=organization).select_related("assigned_to")
     date_from = None
     date_to = None
+    assigned_to = None
+    business_direction = ""
+    customer = None
+    currency = ""
+    selected_payment_status = ""
 
     if form.is_valid():
         date_from = form.cleaned_data.get("date_from")
         date_to = form.cleaned_data.get("date_to")
         assigned_to = form.cleaned_data.get("assigned_to")
         business_direction = form.cleaned_data.get("business_direction")
+        customer = form.cleaned_data.get("customer")
+        currency = form.cleaned_data.get("currency")
+        selected_payment_status = form.cleaned_data.get("payment_status")
         if date_from:
             leads = leads.filter(created_at__date__gte=date_from)
         if date_to:
@@ -154,6 +172,10 @@ def sales_report(request):
             leads = leads.filter(assigned_to=assigned_to)
         if business_direction:
             leads = leads.filter(business_direction=business_direction)
+        if customer:
+            leads = leads.filter(customer=customer)
+        if currency:
+            leads = leads.filter(currency=currency)
 
     status_counts = {
         row["status"]: row["count"]
@@ -241,10 +263,19 @@ def sales_report(request):
         organization=organization,
         lead__in=leads,
     ).count()
-    filtered_orders = SalesOrder.objects.filter(
-        organization=organization,
-        quotation__lead__in=leads,
-    ).select_related("quotation", "organization")
+    filtered_orders = SalesOrder.objects.filter(organization=organization).filter(
+        Q(quotation__lead__in=leads) | Q(quotation__lead__isnull=True)
+    ).select_related("customer", "quotation", "organization")
+    if assigned_to:
+        filtered_orders = filtered_orders.filter(assigned_to=assigned_to)
+    if business_direction:
+        filtered_orders = filtered_orders.filter(
+            quotation__lead__business_direction=business_direction
+        )
+    if customer:
+        filtered_orders = filtered_orders.filter(customer=customer)
+    if currency:
+        filtered_orders = filtered_orders.filter(quotation__currency=currency)
     order_count = filtered_orders.count()
 
     active_payment_plans = PaymentPlan.objects.filter(
@@ -265,9 +296,17 @@ def sales_report(request):
         payment_plans = payment_plans.filter(due_date__lte=date_to)
         payments = payments.filter(received_on__lte=date_to)
 
+    payment_plan_rows = list(payment_plans)
+    if selected_payment_status:
+        payment_plan_rows = [
+            plan
+            for plan in payment_plan_rows
+            if payment_status_code(plan) == selected_payment_status
+        ]
+
     planned_totals = defaultdict(lambda: Decimal("0"))
     actual_totals = defaultdict(lambda: Decimal("0"))
-    for plan in payment_plans:
+    for plan in payment_plan_rows:
         planned_totals[plan.order.currency] += plan.amount
     for payment in payments:
         actual_totals[payment.order.currency] += payment.amount
@@ -282,6 +321,42 @@ def sales_report(request):
     ]
 
     cash_forecast = build_cash_forecast(active_payment_plans, timezone.localdate())
+    today = timezone.localdate()
+    debt_rows = []
+    aging_totals = defaultdict(
+        lambda: {
+            "days_1_7": Decimal("0"),
+            "days_8_30": Decimal("0"),
+            "days_31_60": Decimal("0"),
+            "days_60_plus": Decimal("0"),
+        }
+    )
+    for plan in payment_plan_rows:
+        balance = plan.balance
+        if balance <= 0 or plan.due_date >= today:
+            continue
+        days_overdue = (today - plan.due_date).days
+        if days_overdue <= 7:
+            bucket = "days_1_7"
+        elif days_overdue <= 30:
+            bucket = "days_8_30"
+        elif days_overdue <= 60:
+            bucket = "days_31_60"
+        else:
+            bucket = "days_60_plus"
+        aging_totals[plan.order.currency][bucket] += balance
+        debt_rows.append(
+            {
+                "plan": plan,
+                "days_overdue": days_overdue,
+                "balance": balance,
+                "currency": plan.order.currency,
+            }
+        )
+    aging_summary = [
+        {"currency": currency_code, **totals}
+        for currency_code, totals in sorted(aging_totals.items())
+    ]
 
     return render(
         request,
@@ -297,6 +372,8 @@ def sales_report(request):
             "order_count": order_count,
             "payment_comparison": payment_comparison,
             "cash_forecast": cash_forecast,
+            "aging_summary": aging_summary,
+            "debt_rows": debt_rows,
             "funnel_rows": funnel_rows,
             "pipeline_by_currency": pipeline_by_currency,
             "won_by_currency": won_by_currency,

@@ -1,5 +1,21 @@
-<section class="list-toolbar">
+<section class="list-toolbar{% if filter_panel_title %} list-toolbar-panel{% endif %}">
+    {% if filter_panel_title %}
+    <header class="list-toolbar-heading">
+        <div>
+            <p class="eyebrow">Ro‘yxat boshqaruvi</p>
+            <h2>{{ filter_panel_title }}</h2>
+        </div>
+        {% if filter_create_url %}
+        <a class="button list-create-button" href="{{ filter_create_url }}">
+            {% include "shared/icon.html" with name="plus" %}
+            {{ filter_create_label|default:"Yangi yozuv" }}
+        </a>
+        {% endif %}
+    </header>
+    {% endif %}
     <form class="list-filters" method="get">
+        {% if filter_scope %}<input type="hidden" name="scope" value="{{ filter_scope }}">{% endif %}
+        {% if filter_view_mode %}<input type="hidden" name="view" value="{{ filter_view_mode }}">{% endif %}
         {% for field in filter_form %}
         <label class="list-filter-field{% if field.name == 'q' %} list-filter-search{% endif %}">
             <span>{{ field.label }}</span>
@@ -8,11 +24,12 @@
         {% endfor %}
         <div class="list-filter-actions">
             <a class="button button-secondary" href="{{ filter_reset_url }}">Tozalash</a>
-            <button class="button" type="submit">Ko'rsatish</button>
+            <button class="button" type="submit">{% include "shared/icon.html" with name="search" %}<span>Ko'rsatish</span></button>
         </div>
     </form>
-    {% if filter_create_url %}
+    {% if filter_create_url and not filter_panel_title %}
     <a class="button list-create-button" href="{{ filter_create_url }}">
+        {% include "shared/icon.html" with name="plus" %}
         {{ filter_create_label|default:"Yangi yozuv" }}
     </a>
     {% endif %}

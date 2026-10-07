@@ -1,0 +1,98 @@
+{% load static %}
+<!doctype html>
+<html lang="uz">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#081410">
+    <title>Zavod 3D — BCRM</title>
+    <link rel="stylesheet" href="{% static 'css/factory-3d.css' %}?v=20261006-3">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="factory-scene" aria-label="Interaktiv uch o‘lchamli zavod maketi"></div>
+    <div id="photo-reference" style="--reference-image: url('{% static 'img/factory-reference.png' %}')" aria-hidden="true"></div>
+
+    <header class="scene-header glass-panel">
+        <a class="back-link" href="{% url 'dashboard' %}" aria-label="Dashboardga qaytish">←</a>
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div>
+            <p>BCRM · SURAT ASOSIDAGI MAKET</p>
+            <h1>Sanoat majmuasi</h1>
+        </div>
+        <div class="live-status"><i></i><span>3D maket</span></div>
+    </header>
+
+    <aside class="facility-panel glass-panel" aria-label="Obyektlar ro‘yxati">
+        <div class="panel-heading">
+            <div>
+                <span>HUDUD</span>
+                <strong>7 ta obyekt</strong>
+            </div>
+            <button id="close-panel" type="button" aria-label="Panelni yopish">×</button>
+        </div>
+        <nav id="facility-list">
+            <button type="button" data-target="Main production">
+                <i class="facility-icon production"></i><span><b>Asosiy ishlab chiqarish</b><small>Surat asosida</small></span><em>01</em>
+            </button>
+            <button type="button" data-target="Processing block">
+                <i class="facility-icon processing"></i><span><b>Qayta ishlash sexi</b><small>Surat asosida</small></span><em>02</em>
+            </button>
+            <button type="button" data-target="Tank farm">
+                <i class="facility-icon tanks"></i><span><b>Rezervuarlar</b><small>8 birlik · Taxminiy</small></span><em>03</em>
+            </button>
+            <button type="button" data-target="Warehouse">
+                <i class="facility-icon warehouse"></i><span><b>Ombor majmuasi</b><small>Surat asosida</small></span><em>04</em>
+            </button>
+            <button type="button" data-target="Office">
+                <i class="facility-icon office"></i><span><b>Ma’muriy bino</b><small>Surat asosida</small></span><em>05</em>
+            </button>
+            <button type="button" data-target="Utility hall">
+                <i class="facility-icon utility"></i><span><b>Texnik korpus</b><small>Surat asosida</small></span><em>06</em>
+            </button>
+            <button type="button" data-target="Chimney">
+                <i class="facility-icon chimney"></i><span><b>Tutun minorasi</b><small>Surat asosida</small></span><em>07</em>
+            </button>
+        </nav>
+    </aside>
+
+    <section id="info-card" class="info-card glass-panel" aria-live="polite">
+        <button id="close-info" type="button" aria-label="Ma’lumotni yopish">×</button>
+        <span id="info-index">OBYEKT 01</span>
+        <h2 id="info-title">Asosiy ishlab chiqarish</h2>
+        <p id="info-description">To‘liq siklli ishlab chiqarish korpusi.</p>
+        <div class="metric-row">
+            <div><small>HOLATI</small><strong><i></i> Maket</strong></div>
+            <div><small>MA’LUMOT</small><strong id="info-load">Demo</strong></div>
+        </div>
+    </section>
+
+    <div class="scene-controls glass-panel" aria-label="Sahna boshqaruvi">
+        <button id="toggle-panel" type="button" title="Obyektlar">▤<span>Obyektlar</span></button>
+        <button id="toggle-rotate" type="button" title="Avtomatik aylantirish">↻<span>Aylantirish</span></button>
+        <button id="toggle-photo" type="button" title="Asl surat bilan taqqoslash">◫<span>Asl surat</span></button>
+        <button id="toggle-day" type="button" title="Kun va tun">☼<span>Yoritish</span></button>
+        <button id="reset-camera" type="button" title="Kamerani tiklash">⌂<span>Tiklash</span></button>
+    </div>
+
+    <div class="detail-badge glass-panel"><i></i><span>Surat asosida</span><b>TAXMINIY 3D</b></div>
+
+    <div class="scene-hint" id="scene-hint">
+        <span>◉</span> Aylantirish uchun torting · Yaqinlashtirish uchun scroll qiling
+    </div>
+    <div class="loading-screen" id="loading-screen">
+        <div class="loader-mark"><span></span><span></span><span></span></div>
+        <p>3D hudud tayyorlanmoqda</p>
+        <div class="loading-line"><i></i></div>
+    </div>
+    <noscript>3D maketni ko‘rish uchun JavaScript’ni yoqing.</noscript>
+    <script type="module" src="{% static 'js/factory-3d.js' %}?v=20261006-3"></script>
+</body>
+</html>

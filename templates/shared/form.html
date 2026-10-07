@@ -23,8 +23,9 @@
             {% endfor %}
         </div>
         <div class="form-actions">
-            {% if cancel_url %}<a class="button button-secondary" href="{{ cancel_url }}">Bekor qilish</a>{% endif %}
+            {% if cancel_url %}<a class="button button-secondary" href="{{ cancel_url }}">{% include "shared/icon.html" with name="close" %}<span>Bekor qilish</span></a>{% endif %}
             <button class="button" type="submit"{% if submit_disabled %} disabled{% endif %}>
+                {% include "shared/icon.html" with name="save" %}
                 <span data-submit-label>{{ submit_label|default:"Saqlash" }}</span>
                 {% if submit_loading_label %}<span class="button-spinner" aria-hidden="true"></span>{% endif %}
             </button>

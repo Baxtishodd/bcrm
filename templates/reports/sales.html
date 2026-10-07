@@ -17,7 +17,7 @@
         {% endfor %}
         <div class="report-filter-actions">
             <a class="button button-secondary" href="{% url 'sales-report' %}">Tozalash</a>
-            <button class="button" type="submit">Ko'rsatish</button>
+            <button class="button" type="submit">{% include "shared/icon.html" with name="search" %}<span>Ko'rsatish</span></button>
         </div>
     </form>
 </section>
@@ -125,6 +125,34 @@
             {% for row in cash_forecast %}
             <tr><td><strong>{{ row.currency }}</strong></td><td>{{ row.overdue|floatformat:2 }}</td><td>{{ row.next_7_days|floatformat:2 }}</td><td>{{ row.next_30_days|floatformat:2 }}</td></tr>
             {% empty %}<tr><td colspan="4" class="empty">Kutilayotgan to'lovlar yo'q.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel report-direction-panel">
+    <div class="panel-heading"><div><p class="eyebrow">Qarzdorlik</p><h2>Muddati o'tgan qarzlar yoshi</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Valyuta</th><th>1–7 kun</th><th>8–30 kun</th><th>31–60 kun</th><th>60+ kun</th></tr></thead>
+            <tbody>
+            {% for row in aging_summary %}
+            <tr><td><strong>{{ row.currency }}</strong></td><td>{{ row.days_1_7|floatformat:"2g" }}</td><td>{{ row.days_8_30|floatformat:"2g" }}</td><td>{{ row.days_31_60|floatformat:"2g" }}</td><td>{{ row.days_60_plus|floatformat:"2g" }}</td></tr>
+            {% empty %}<tr><td colspan="5" class="empty">Tanlangan filtrlar bo'yicha muddati o'tgan qarz yo'q.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel report-direction-panel">
+    <div class="panel-heading"><div><p class="eyebrow">Tafsilot</p><h2>Qarzdor buyurtmalar</h2></div></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Buyurtma</th><th>Mijoz</th><th>To'lov sanasi</th><th>Kechikish</th><th>Qoldiq</th></tr></thead>
+            <tbody>
+            {% for row in debt_rows %}
+            <tr><td><a class="table-link" href="{% url 'sales:order-detail' row.plan.order.public_id %}">{{ row.plan.order.number }}</a></td><td>{{ row.plan.order.customer }}</td><td>{{ row.plan.due_date|date:"d.m.Y" }}</td><td>{{ row.days_overdue }} kun</td><td><strong>{{ row.balance|floatformat:"2g" }} {{ row.currency }}</strong></td></tr>
+            {% empty %}<tr><td colspan="5" class="empty">Qarzdor buyurtmalar topilmadi.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>

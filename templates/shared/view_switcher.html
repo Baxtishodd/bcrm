@@ -1,0 +1,8 @@
+<nav class="view-switcher" data-view-switcher aria-label="Ro'yxat ko'rinishi">
+    <button class="view-switcher-button{% if view_mode == 'cards' %} active{% endif %}" type="button" data-view-mode="cards" title="Kartochka ko'rinishi" aria-label="Kartochka ko'rinishi" aria-pressed="{% if view_mode == 'cards' %}true{% else %}false{% endif %}">
+        {% include "shared/icon.html" with name="cards" %}
+    </button>
+    <button class="view-switcher-button{% if view_mode == 'table' %} active{% endif %}" type="button" data-view-mode="table" title="Jadval ko'rinishi" aria-label="Jadval ko'rinishi" aria-pressed="{% if view_mode == 'table' %}true{% else %}false{% endif %}">
+        {% include "shared/icon.html" with name="table" %}
+    </button>
+</nav>

@@ -11,18 +11,19 @@
 </nav>
 <section class="page-actions">
     <p class="muted">Price-list va product-list hujjatlari, muddatlari va tarixiy narxlari.</p>
-    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:offer-create' %}">Yangi hujjat</a>{% endif %}
+    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:offer-create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi hujjat</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">
         <table>
             <thead>
-                <tr><th>Raqam</th><th>Turi</th><th>Yo'nalish</th><th>Sana</th><th>Amal qilish</th><th>Qatorlar</th><th>Holati</th></tr>
+                <tr><th>Raqam</th><th>Versiya</th><th>Turi</th><th>Yo'nalish</th><th>Sana</th><th>Amal qilish</th><th>Qatorlar</th><th>Holati</th></tr>
             </thead>
             <tbody>
             {% for offer in offers %}
                 <tr {% if offer.is_expired %}class="row-overdue"{% endif %}>
                     <td><a class="table-link" href="{% url 'catalog:offer-detail' offer.public_id %}">{{ offer.number }}</a></td>
+                    <td>v{{ offer.version }}</td>
                     <td>{{ offer.get_document_type_display }}</td>
                     <td>{{ offer.get_category_display|default:"Barcha mahsulotlar" }}</td>
                     <td>{{ offer.issue_date|date:"d.m.Y" }}</td>
@@ -34,7 +35,7 @@
                     </td>
                 </tr>
             {% empty %}
-                <tr><td colspan="7" class="empty">Taklif hujjatlari hali yaratilmagan.</td></tr>
+                <tr><td colspan="8" class="empty">Taklif hujjatlari hali yaratilmagan.</td></tr>
             {% endfor %}
             </tbody>
         </table>

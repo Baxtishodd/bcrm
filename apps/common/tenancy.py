@@ -21,7 +21,7 @@ def get_membership(user):
 def organization_required(view_func):
     @wraps(view_func)
     def wrapped(request, *args, **kwargs):
-        membership = get_membership(request.user)
+        membership = getattr(request, "membership", None) or get_membership(request.user)
         if membership is None:
             messages.error(request, "Sizga faol korxona biriktirilmagan.")
             return redirect("dashboard")

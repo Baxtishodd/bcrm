@@ -10,7 +10,7 @@
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">Mijoz</p><h2>Asosiy ma'lumotlar</h2></div>
-            {% if request.crm_permissions.manage_customers %}<a class="button button-secondary" href="{% url 'customers:update' customer.public_id %}">Tahrirlash</a>{% endif %}
+            {% if request.crm_permissions.manage_customers %}<a class="button button-secondary" href="{% url 'customers:update' customer.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>{% endif %}
         </div>
         <dl class="details">
             <div><dt>Holati</dt><dd>{{ customer.get_relationship_status_display }}</dd></div>
@@ -33,12 +33,12 @@
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">Aloqa</p><h2>Kontaktlar</h2></div>
-            {% if request.crm_permissions.manage_customers %}<a class="button" href="{% url 'customers:contact-create' customer.public_id %}">Kontakt qo'shish</a>{% endif %}
+            {% if request.crm_permissions.manage_customers %}<a class="button" href="{% url 'customers:customer-contact-create' customer.public_id %}">Kontakt qo'shish</a>{% endif %}
         </div>
         <div class="stack-list">
             {% for contact in customer.contacts.all %}
             <div class="stack-item">
-                <strong>{{ contact.full_name }}</strong>
+                <a class="table-link" href="{% url 'customers:contact-detail' contact.public_id %}"><strong>{{ contact.full_name }}</strong></a>
                 <span>{{ contact.position|default:"Lavozim ko'rsatilmagan" }}</span>
                 <small>{{ contact.phone|default:contact.whatsapp|default:contact.email|default:"—" }}</small>
             </div>

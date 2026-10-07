@@ -32,7 +32,12 @@
             <tbody>
             {% for membership in page %}
                 <tr>
-                    <td><strong>{{ membership.user.get_full_name|default:membership.user.email }}</strong><br><small>{{ membership.user.email }}</small></td>
+                    <td>
+                        <div class="employee-person">
+                            {% if membership.user.avatar %}<img src="{{ membership.user.avatar.url }}" alt="{{ membership.user.get_full_name|default:membership.user.email }} avatari">{% else %}<span aria-hidden="true">{{ membership.user.get_full_name|default:membership.user.email|first|upper }}</span>{% endif %}
+                            <div><strong>{{ membership.user.get_full_name|default:membership.user.email }}</strong><br><small>{{ membership.user.email }}</small></div>
+                        </div>
+                    </td>
                     <td>{{ membership.user.phone|default:"—" }}</td>
                     <td>{{ membership.get_role_display }}</td>
                     <td>{{ membership.branch|default:"—" }}</td>

@@ -12,7 +12,7 @@
             <div><p class="eyebrow">Lead</p><h2>{{ lead.get_status_display }}</h2></div>
             <div class="button-row">
                 {% if request.crm_permissions.manage_leads %}
-                <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">Tahrirlash</a>
+                <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>
                 {% endif %}
                 {% if request.crm_permissions.manage_sales %}
                 {% if lead.status == "won" and linked_order %}
@@ -56,7 +56,7 @@
     <div class="panel-heading">
         <div><p class="eyebrow">Savdo</p><h2>Takliflar tarixi</h2></div>
         {% if request.crm_permissions.manage_sales and lead.customer_id %}
-        <a class="button" href="{% url 'sales:create-from-lead' lead.public_id %}">Yangi taklif</a>
+        <a class="button" href="{% url 'sales:create-from-lead' lead.public_id %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi taklif</span></a>
         {% elif request.crm_permissions.manage_leads and not lead.customer_id %}
         <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">Mijoz biriktirish</a>
         {% endif %}

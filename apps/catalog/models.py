@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from apps.common.choices import Currency
@@ -251,6 +251,7 @@ class PriceList(OrganizationScopedModel):
         EN = "en", "Inglizcha"
 
     number = models.CharField(max_length=50)
+    version = models.PositiveIntegerField(default=1)
     document_type = models.CharField(
         max_length=20,
         choices=DocumentType.choices,
@@ -298,13 +299,28 @@ class PriceList(OrganizationScopedModel):
         ordering = ["-issue_date", "-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["organization", "document_type", "number"],
-                name="uniq_catalog_price_list_number",
+                fields=["organization", "document_type", "number", "version"],
+                name="uniq_catalog_price_list_version",
             )
         ]
 
     def __str__(self):
-        return f"{self.number} — {self.get_document_type_display()}"
+        return f"{self.number} / v{self.version} — {self.get_document_type_display()}"
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if self.status == self.Status.ACTIVE:
+                type(self).objects.filter(
+                    organization_id=self.organization_id,
+                    document_type=self.document_type,
+                    category=self.category,
+                    currency=self.currency,
+                    status=self.Status.ACTIVE,
+                ).exclude(pk=self.pk).update(
+                    status=self.Status.ARCHIVED,
+                    updated_at=timezone.now(),
+                )
 
     @property
     def is_expired(self):

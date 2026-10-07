@@ -57,6 +57,7 @@ class PriceListLineInline(admin.TabularInline):
 class PriceListAdmin(admin.ModelAdmin):
     list_display = (
         "number",
+        "version",
         "document_type",
         "category",
         "issue_date",

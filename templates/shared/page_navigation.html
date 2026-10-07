@@ -1,6 +1,6 @@
 <nav class="page-navigation" aria-label="Sahifa navigatsiyasi">
     <a class="back-button" href="{{ back_url }}" aria-label="{{ back_label|default:'Ortga' }}">
-        <span aria-hidden="true">←</span>
+        {% include "shared/icon.html" with name="arrow-left" %}
         <span>{{ back_label|default:"Ortga" }}</span>
     </a>
     {% if parent_label %}

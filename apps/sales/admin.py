@@ -15,6 +15,7 @@ from .models import (
 class QuotationLineInline(admin.TabularInline):
     model = QuotationLine
     extra = 0
+    readonly_fields = ("price_source", "source_price_list", "source_unit_price")
 
 
 class QuotationDeliveryInline(admin.TabularInline):
