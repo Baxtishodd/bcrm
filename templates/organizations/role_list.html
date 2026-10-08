@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Rollar va ruxsatlar — BCRM{% endblock %}
+{% block heading %}Rollar va ruxsatlar{% endblock %}
+
+{% block content %}
+{% include "shared/page_navigation.html" with back_url="/" back_label="Ortga" current_label="Rollar" %}
+<nav class="section-tabs">
+    <a href="{% url 'organizations:settings' %}">Rekvizitlar</a>
+    <a href="{% url 'organizations:employees' %}">Xodimlar</a>
+    <a class="active" href="{% url 'organizations:roles' %}">Rollar va ruxsatlar</a>
+</nav>
+<section class="page-actions">
+    <div>
+        <p class="eyebrow">KIRISH NAZORATI</p>
+        <p class="muted">Har bir rol uchun ko‘rish, yaratish, tahrirlash va o‘chirish huquqlarini belgilang.</p>
+    </div>
+    <a class="button" href="{% url 'organizations:role-create' %}">+ Yangi rol</a>
+</section>
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Rol</th><th>Tavsifi</th><th>Xodimlar</th><th></th></tr></thead>
+            <tbody>
+            <tr>
+                <td><strong>Egasi</strong><br><small>Tizim roli</small></td>
+                <td>Barcha huquqlarga ega; o‘zgartirib yoki o‘chirib bo‘lmaydi.</td>
+                <td>—</td>
+                <td><span class="badge badge-success">Himoyalangan</span></td>
+            </tr>
+            {% for role in roles %}
+            <tr>
+                <td><strong>{{ role.name }}</strong></td>
+                <td>{{ role.description|default:"—" }}</td>
+                <td>{{ role.employee_count }}</td>
+                <td class="role-actions-cell">
+                    <div class="role-actions">
+                    <a class="role-action role-action-edit" href="{% url 'organizations:role-update' role.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>
+                    <form method="post" action="{% url 'organizations:role-delete' role.public_id %}"{% if not role.employee_count %} onsubmit="return confirm('Bu rolni o‘chirishni tasdiqlaysizmi?');"{% endif %}>
+                        {% csrf_token %}
+                        <button class="role-action role-action-delete" type="submit"{% if role.employee_count %} disabled title="Rol {{ role.employee_count }} ta xodimga biriktirilgan"{% endif %}>{% include "shared/icon.html" with name="trash" %}<span>O‘chirish</span></button>
+                    </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="empty">Hali maxsus rol yaratilmagan.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

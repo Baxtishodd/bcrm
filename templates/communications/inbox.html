@@ -1,30 +1,34 @@
 {% extends "base.html" %}
 
-{% block title %}Xabarlar · BCRM{% endblock %}
-{% block heading %}Xabarlar{% endblock %}
+{% block title %}{% if team_mode %}Jamoa chatlari{% else %}Xabarlar{% endif %} · BCRM{% endblock %}
+{% block heading %}{% if team_mode %}Jamoa chatlari{% else %}Xabarlar{% endif %}{% endblock %}
 
 {% block content %}
-<section class="message-inbox" aria-label="Xabarlar markazi" data-sync-url="{% url 'communications:sync' %}"{% if selected_conversation %} data-conversation-id="{{ selected_conversation.public_id }}"{% endif %}>
+<section class="message-inbox" aria-label="{% if team_mode %}Jamoa chatlari{% else %}Xabarlar markazi{% endif %}" data-sync-url="{% if team_mode %}{% url 'communications:team-sync' %}{% else %}{% url 'communications:sync' %}{% endif %}"{% if selected_conversation %} data-conversation-id="{{ selected_conversation.public_id }}"{% endif %}>
     <aside class="conversation-pane">
         <div class="conversation-pane-heading">
             <div>
-                <p class="eyebrow">Barcha kanallar</p>
-                <h2>Suhbatlar</h2>
+                <p class="eyebrow">{% if team_mode %}Ichki aloqa{% else %}Barcha kanallar{% endif %}</p>
+                <h2>{% if team_mode %}Jamoa{% else %}Suhbatlar{% endif %}</h2>
             </div>
+            {% if not team_mode %}
             <div class="conversation-heading-actions">
-                <a class="button button-secondary email-compose-link" href="{% url 'communications:email-compose' %}">
+                <a class="button button-secondary email-compose-link" href="{% url 'communications:email-compose' %}" data-email-compose-trigger>
                     {% include "shared/icon.html" with name="email" %}<span>Email yozish</span>
                 </a>
-                <a class="button button-primary button-icon" href="{% url 'communications:create' %}" aria-label="Yangi ichki suhbat" title="Yangi ichki suhbat">
-                    {% include "shared/icon.html" with name="plus" %}
-                </a>
             </div>
+            {% endif %}
         </div>
+        <nav class="message-mode-tabs" aria-label="Xabar turi">
+            {% if request.crm_permissions.view_mailbox %}<a{% if not team_mode %} class="active"{% endif %} href="{% url 'communications:inbox' %}">Mijozlar</a>{% endif %}
+            <a{% if team_mode %} class="active"{% endif %} href="{% url 'communications:team-inbox' %}">Jamoa</a>
+        </nav>
         <form class="conversation-filters" method="get">
             <label class="conversation-search">
                 {% include "shared/icon.html" with name="search" %}
-                <input type="search" name="q" value="{{ query }}" placeholder="Suhbat yoki xabarni qidirish">
+                <input type="search" name="q" value="{{ query }}" placeholder="{% if team_mode %}Xodim yoki xabarni qidirish{% else %}Suhbat yoki xabarni qidirish{% endif %}">
             </label>
+            {% if not team_mode %}
             <select name="channel" aria-label="Kanal" onchange="this.form.submit()">
                 <option value="">Barcha kanallar</option>
                 {% for value, label in channel_choices %}
@@ -39,9 +43,37 @@
                 {% endfor %}
             </select>
             {% endif %}
+            {% endif %}
         </form>
+        {% if team_mode %}
+        <details class="team-directory"{% if not conversations %} open{% endif %}>
+            <summary>Yangi suhbat <span>{{ team_members|length }} xodim</span></summary>
+            <div class="team-directory-list">
+                {% for membership in team_members %}
+                <form method="post" action="{% url 'communications:team-start' membership.public_id %}">
+                    {% csrf_token %}
+                    <button type="submit" title="{{ membership.user.get_full_name|default:membership.user.email }} bilan suhbatni ochish">
+                        {% if membership.user.avatar %}
+                        <img src="{{ membership.user.avatar.url }}" alt="">
+                        {% else %}
+                        <span class="team-directory-avatar">{{ membership.user.get_full_name|default:membership.user.email|first|upper }}</span>
+                        {% endif %}
+                        <span class="team-directory-person">
+                            <strong>{{ membership.user.get_full_name|default:membership.user.email }}</strong>
+                            <small>{{ membership.role_name }}{% if membership.branch %} · {{ membership.branch.name }}{% endif %}</small>
+                        </span>
+                        {% include "shared/icon.html" with name="messages" %}
+                    </button>
+                </form>
+                {% empty %}
+                <p>Faol xodim topilmadi.</p>
+                {% endfor %}
+            </div>
+        </details>
+        <p class="conversation-list-label">Oxirgi suhbatlar</p>
+        {% endif %}
         <div class="conversation-list">
-            {% include "communications/_conversation_list.html" %}
+            {% include "communications/_conversation_list.html" with team_mode=team_mode %}
         </div>
     </aside>
 
@@ -49,12 +81,18 @@
         {% if selected_conversation %}
         <header class="chat-header">
             <div class="chat-person">
-                {% if selected_conversation.telegram_avatar %}
+                {% if team_mode and selected_conversation.team_peer.avatar %}
+                <img class="conversation-avatar conversation-avatar-large conversation-avatar-image" src="{{ selected_conversation.team_peer.avatar.url }}" alt="{{ selected_conversation.team_peer.get_full_name|default:selected_conversation.team_peer.email }}">
+                {% elif selected_conversation.telegram_avatar %}
                 <img class="conversation-avatar conversation-avatar-large conversation-avatar-image" src="{{ selected_conversation.telegram_avatar.url }}" alt="{{ selected_conversation.display_title }}">
                 {% else %}
-                <span class="conversation-avatar conversation-avatar-large">{{ selected_conversation.display_title|first|upper }}</span>
+                <span class="conversation-avatar conversation-avatar-large">{% if team_mode %}{{ selected_conversation.team_peer.get_full_name|default:selected_conversation.team_peer.email|first|upper }}{% else %}{{ selected_conversation.display_title|first|upper }}{% endif %}</span>
                 {% endif %}
                 <div>
+                    {% if team_mode %}
+                    <h2 title="{{ selected_conversation.team_peer.get_full_name|default:selected_conversation.team_peer.email }}">{{ selected_conversation.team_peer.get_full_name|default:selected_conversation.team_peer.email }}</h2>
+                    <p>{{ selected_conversation.team_peer.email }} · Jamoa suhbati</p>
+                    {% else %}
                     <h2 title="{{ selected_conversation.display_title }}">{{ selected_conversation.display_title }}</h2>
                     <p>{{ selected_conversation.get_channel_display }} · {{ selected_conversation.get_status_display }}{% if selected_conversation.assigned_to %} · {{ selected_conversation.assigned_to.get_full_name|default:selected_conversation.assigned_to.email }}{% endif %}</p>
                     {% if selected_conversation.channel == "email" %}
@@ -63,17 +101,20 @@
                         {% if selected_conversation.mailbox %}<span>Mailbox: {{ selected_conversation.mailbox.email }}</span>{% endif %}
                     </p>
                     {% endif %}
+                    {% endif %}
                 </div>
             </div>
+            {% if not team_mode %}
             <nav class="chat-links" aria-label="Bog'langan obyektlar">
                 {% if selected_conversation.contact %}<a href="{% url 'customers:contact-detail' selected_conversation.contact.public_id %}">Kontakt</a>{% endif %}
                 {% if selected_conversation.customer %}<a href="{% url 'customers:detail' selected_conversation.customer.public_id %}">Mijoz</a>{% endif %}
                 {% if selected_conversation.lead %}<a href="{% url 'crm:detail' selected_conversation.lead.public_id %}">Lead</a>{% endif %}
             </nav>
+            {% endif %}
         </header>
 
         <div class="chat-messages" aria-live="polite">
-            {% include "communications/_message_items.html" with message_items=selected_conversation.messages.all show_empty=True %}
+            {% include "communications/_message_items.html" with message_items=selected_conversation.messages.all show_empty=True team_mode=team_mode %}
         </div>
 
         {% if selected_conversation.status == "open" %}
@@ -97,12 +138,15 @@
         {% else %}
         <div class="chat-placeholder">
             {% include "shared/icon.html" with name="messages" %}
-            <h2>Xabarlar markazi</h2>
-            <p>Suhbatni tanlang yoki yangi suhbat yarating.</p>
+            <h2>{% if team_mode %}Jamoa chatlari{% else %}Xabarlar markazi{% endif %}</h2>
+            <p>{% if team_mode %}Xodimlar sahifasidan hamkasbingizga xabar yuborishni boshlang.{% else %}Suhbatni tanlang yoki yangi suhbat yarating.{% endif %}</p>
+            {% if not team_mode %}
             <div class="chat-placeholder-actions">
-                <a class="button button-primary" href="{% url 'communications:email-compose' %}">Email yozish</a>
-                <a class="button button-secondary" href="{% url 'communications:create' %}">Ichki suhbat</a>
+                <a class="button button-primary" href="{% url 'communications:email-compose' %}" data-email-compose-trigger>Email yozish</a>
             </div>
+            {% else %}
+            {% if request.crm_permissions.view_organization %}<a class="button button-primary" href="{% url 'organizations:employees' %}">Xodimlarni ochish</a>{% endif %}
+            {% endif %}
         </div>
         {% endif %}
     </div>

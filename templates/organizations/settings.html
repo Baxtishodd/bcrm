@@ -7,7 +7,8 @@
 {% include "shared/page_navigation.html" with back_url="/" back_label="Ortga" current_label="Tashkilot sozlamalari" %}
 <nav class="section-tabs">
     <a class="active" href="{% url 'organizations:settings' %}">Rekvizitlar</a>
-    <a href="{% url 'organizations:employees' %}">Xodimlar</a>
+    {% if request.crm_permissions.view_organization %}<a href="{% url 'organizations:employees' %}">Xodimlar</a>{% endif %}
+    {% if request.membership.role == "owner" or request.user.is_superuser %}<a href="{% url 'organizations:roles' %}">Rollar va ruxsatlar</a>{% endif %}
 </nav>
 <form method="post" enctype="multipart/form-data" class="settings-form">
     {% csrf_token %}

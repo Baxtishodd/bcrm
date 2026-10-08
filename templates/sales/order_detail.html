@@ -9,7 +9,7 @@
 <section class="panel detail-card">
     <div class="panel-heading">
         <div><p class="eyebrow">{{ order.get_status_display }}</p><h2>{{ order.customer }}</h2></div>
-        {% if request.crm_permissions.manage_sales %}
+        {% if record_editable and request.crm_permissions.create_sales or record_editable and request.crm_permissions.update_sales or record_editable and request.crm_permissions.delete_sales %}
         <div class="form-actions">
             <a class="button button-secondary" href="{% url 'sales:order-update' order.public_id %}">Buyurtmani tahrirlash</a>
             <a class="button button-secondary" href="{% url 'sales:payment-plan-create' order.public_id %}">+ To'lov rejasi</a>
@@ -27,7 +27,7 @@
         <div><dt>Rejalashtirilgan</dt><dd>{{ planned_payment_total|floatformat:2 }} {{ order.currency }}</dd></div>
         <div><dt>Haqiqiy tushum</dt><dd>{{ order.paid_amount|floatformat:2 }} {{ order.currency }}</dd></div>
         <div><dt>Qoldiq</dt><dd>{{ order.balance|floatformat:2 }} {{ order.currency }}</dd></div>
-        <div><dt>To'lov holati</dt><dd>{{ order.payment_status }}</dd></div>
+        <div><dt>To'lov holati</dt><dd><span class="badge badge-status-{{ order.payment_status_code }}">{{ order.payment_status }}</span></dd></div>
     </dl>
     <div class="table-wrap"><table>
         <thead><tr><th>Mahsulot</th><th>Miqdor</th><th>Narx</th><th>Jami</th></tr></thead>
@@ -39,7 +39,7 @@
     <article class="panel">
         <div class="panel-heading"><div><p class="eyebrow">Reja</p><h2>To'lov jadvali</h2></div></div>
         <div class="table-wrap"><table>
-            <thead><tr><th>Sana</th><th>Reja</th><th>Tushgan</th><th>Qoldiq</th><th>Holat</th><th>Izoh</th>{% if request.crm_permissions.manage_sales %}<th>Amallar</th>{% endif %}</tr></thead>
+            <thead><tr><th>Sana</th><th>Reja</th><th>Tushgan</th><th>Qoldiq</th><th>Holat</th><th>Izoh</th>{% if record_editable and request.crm_permissions.update_sales or record_editable and request.crm_permissions.delete_sales %}<th>Amallar</th>{% endif %}</tr></thead>
             <tbody>
             {% for plan in order.payment_plans.all %}
             <tr>
@@ -47,9 +47,9 @@
                 <td>{{ plan.amount|floatformat:2 }} {{ order.currency }}</td>
                 <td>{{ plan.received_amount|floatformat:2 }} {{ order.currency }}</td>
                 <td>{{ plan.balance|floatformat:2 }} {{ order.currency }}</td>
-                <td><span class="badge{% if plan.is_cancelled %} badge-danger{% endif %}">{{ plan.payment_status }}</span></td>
+                <td><span class="badge badge-status-{{ plan.payment_status_code }}">{{ plan.payment_status }}</span></td>
                 <td>{{ plan.notes|default:"—" }}{% if plan.is_cancelled %}<br><small>{{ plan.cancellation_reason }}</small>{% endif %}</td>
-                {% if request.crm_permissions.manage_sales %}<td class="table-actions">
+                {% if record_editable and request.crm_permissions.update_sales or record_editable and request.crm_permissions.delete_sales %}<td class="table-actions">
                     {% if not plan.is_cancelled %}
                     <a class="table-link" href="{% url 'sales:payment-plan-update' plan.public_id %}">Tahrirlash</a>
                     <form method="post" action="{% url 'sales:payment-plan-cancel' plan.public_id %}" class="inline-cancel-form">{% csrf_token %}<input name="reason" required maxlength="255" placeholder="Bekor qilish sababi"><button type="submit" class="link-button link-danger">Bekor qilish</button></form>
@@ -64,7 +64,7 @@
     <article class="panel">
         <div class="panel-heading"><div><p class="eyebrow">Amal</p><h2>Haqiqiy tushumlar</h2></div></div>
         <div class="table-wrap"><table>
-            <thead><tr><th>Sana</th><th>Summa</th><th>Usul</th><th>Hujjat</th><th>Reja</th><th>Holat</th>{% if request.crm_permissions.manage_sales %}<th>Amallar</th>{% endif %}</tr></thead>
+            <thead><tr><th>Sana</th><th>Summa</th><th>Usul</th><th>Hujjat</th><th>Reja</th><th>Holat</th>{% if record_editable and request.crm_permissions.update_sales or record_editable and request.crm_permissions.delete_sales %}<th>Amallar</th>{% endif %}</tr></thead>
             <tbody>
             {% for payment in order.payments.all %}
             <tr>
@@ -74,7 +74,7 @@
                 <td>{{ payment.reference|default:"—" }}</td>
                 <td>{% if payment.plan %}{{ payment.plan.due_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
                 <td>{% if payment.is_cancelled %}<span class="badge badge-danger">Bekor qilingan</span><br><small>{{ payment.cancellation_reason }}</small>{% else %}<span class="badge badge-success">Qabul qilingan</span>{% endif %}</td>
-                {% if request.crm_permissions.manage_sales %}<td class="table-actions">
+                {% if record_editable and request.crm_permissions.update_sales or record_editable and request.crm_permissions.delete_sales %}<td class="table-actions">
                     {% if not payment.is_cancelled %}
                     <a class="table-link" href="{% url 'sales:payment-update' payment.public_id %}">Tahrirlash</a>
                     <form method="post" action="{% url 'sales:payment-cancel' payment.public_id %}" class="inline-cancel-form">{% csrf_token %}<input name="reason" required maxlength="255" placeholder="Bekor qilish sababi"><button type="submit" class="link-button link-danger">Bekor qilish</button></form>

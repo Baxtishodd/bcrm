@@ -19,7 +19,7 @@
         </div>
         <div class="button-row">
             <a class="button button-secondary" href="{% url 'catalog:offer-pdf' offer.public_id %}">PDF yuklab olish</a>
-            {% if request.crm_permissions.manage_catalog %}
+            {% if request.crm_permissions.create_catalog or request.crm_permissions.update_catalog %}
             <form method="post" action="{% url 'catalog:offer-create-version' offer.public_id %}">{% csrf_token %}<button class="button button-secondary" type="submit">Yangi versiya</button></form>
             <a class="button" href="{% url 'catalog:offer-document-edit' offer.public_id %}">Hujjat muharriri</a>
             <a class="button button-secondary" href="{% url 'catalog:offer-update' offer.public_id %}">Tahrirlash</a>

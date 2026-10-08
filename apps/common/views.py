@@ -15,6 +15,142 @@ from .forms import SalesReportFilterForm
 from .permissions import OrganizationPermission, organization_permission_required
 from .tenancy import organization_required
 
+UZBEK_MONTHS = (
+    "Yan",
+    "Fev",
+    "Mar",
+    "Apr",
+    "May",
+    "Iyun",
+    "Iyul",
+    "Avg",
+    "Sen",
+    "Okt",
+    "Noy",
+    "Dek",
+)
+
+
+def _shift_month(value, offset):
+    month_index = value.year * 12 + value.month - 1 + offset
+    return value.replace(
+        year=month_index // 12,
+        month=month_index % 12 + 1,
+        day=1,
+    )
+
+
+def build_sales_dashboard_analytics(orders, payments, today, preferred_currency=None):
+    current_start = today.replace(day=1)
+    previous_start = _shift_month(current_start, -1)
+    previous_end = current_start - timedelta(days=1)
+    comparison_days = min(today.day, previous_end.day)
+    previous_compare_end = previous_start + timedelta(days=comparison_days - 1)
+    month_starts = [_shift_month(current_start, offset) for offset in range(-11, 1)]
+    oldest_month = month_starts[0]
+
+    active_orders = [order for order in orders if order.status != SalesOrder.Status.CANCELLED]
+    active_payments = [
+        payment
+        for payment in payments
+        if not payment.is_cancelled and payment.order.status != SalesOrder.Status.CANCELLED
+    ]
+    currencies = sorted(
+        {order.currency for order in active_orders}
+        | {payment.order.currency for payment in active_payments},
+        key=lambda currency: (currency != preferred_currency, currency),
+    )
+    analytics = []
+    for currency in currencies:
+        currency_orders = [order for order in active_orders if order.currency == currency]
+        currency_payments = [
+            payment for payment in active_payments if payment.order.currency == currency
+        ]
+        current_orders = [
+            order for order in currency_orders if current_start <= order.order_date <= today
+        ]
+        previous_orders = [
+            order
+            for order in currency_orders
+            if previous_start <= order.order_date <= previous_compare_end
+        ]
+        current_sales = sum((order.total for order in current_orders), Decimal("0"))
+        previous_sales = sum((order.total for order in previous_orders), Decimal("0"))
+        current_receipts = sum(
+            (
+                payment.amount
+                for payment in currency_payments
+                if current_start <= payment.received_on <= today
+            ),
+            Decimal("0"),
+        )
+        outstanding = sum((order.balance for order in currency_orders), Decimal("0"))
+        average_order = (
+            current_sales / len(current_orders) if current_orders else Decimal("0")
+        )
+        if previous_sales:
+            change_percent = round(
+                (current_sales - previous_sales) * Decimal("100") / previous_sales,
+                1,
+            )
+        else:
+            change_percent = None
+
+        current_daily = defaultdict(lambda: Decimal("0"))
+        previous_daily = defaultdict(lambda: Decimal("0"))
+        for order in current_orders:
+            current_daily[order.order_date.day] += order.total
+        for order in previous_orders:
+            previous_daily[order.order_date.day] += order.total
+        current_cumulative = []
+        previous_cumulative = []
+        current_running = Decimal("0")
+        previous_running = Decimal("0")
+        for day in range(1, today.day + 1):
+            current_running += current_daily[day]
+            if day <= comparison_days:
+                previous_running += previous_daily[day]
+            current_cumulative.append(current_running)
+            previous_cumulative.append(previous_running)
+
+        monthly_sales = defaultdict(lambda: Decimal("0"))
+        monthly_receipts = defaultdict(lambda: Decimal("0"))
+        for order in currency_orders:
+            if oldest_month <= order.order_date <= today:
+                monthly_sales[(order.order_date.year, order.order_date.month)] += order.total
+        for payment in currency_payments:
+            if oldest_month <= payment.received_on <= today:
+                monthly_receipts[(payment.received_on.year, payment.received_on.month)] += (
+                    payment.amount
+                )
+
+        analytics.append(
+            {
+                "currency": currency,
+                "current_sales": current_sales,
+                "previous_sales": previous_sales,
+                "change_percent": change_percent,
+                "current_receipts": current_receipts,
+                "outstanding": outstanding,
+                "order_count": len(current_orders),
+                "average_order": average_order,
+                "day_labels": list(range(1, today.day + 1)),
+                "daily_current": current_cumulative,
+                "daily_previous": previous_cumulative,
+                "month_labels": [
+                    f"{UZBEK_MONTHS[month.month - 1]} {str(month.year)[2:]}"
+                    for month in month_starts
+                ],
+                "monthly_sales": [
+                    monthly_sales[(month.year, month.month)] for month in month_starts
+                ],
+                "monthly_receipts": [
+                    monthly_receipts[(month.year, month.month)] for month in month_starts
+                ],
+            }
+        )
+    return analytics
+
 
 @login_required
 def factory_3d(request):
@@ -66,19 +202,24 @@ def dashboard(request):
     quotations = Quotation.objects.none()
     orders = SalesOrder.objects.none()
     payment_plans = PaymentPlan.objects.none()
+    payments = Payment.objects.none()
 
-    if organization:
+    permissions = request.crm_permissions
+    if organization and permissions.get(OrganizationPermission.VIEW_LEADS):
         leads = Lead.objects.filter(organization=organization).select_related(
             "assigned_to",
             "customer",
         )
+    if organization and permissions.get(OrganizationPermission.VIEW_CUSTOMERS):
         customers = CustomerCompany.objects.filter(organization=organization)
+    if organization and permissions.get(OrganizationPermission.VIEW_TASKS):
         tasks = Activity.objects.filter(organization=organization).select_related(
             "lead",
             "customer",
             "contact",
             "assigned_to",
         )
+    if organization and permissions.get(OrganizationPermission.VIEW_SALES):
         quotations = Quotation.objects.filter(organization=organization).prefetch_related(
             "lines"
         )
@@ -93,6 +234,10 @@ def dashboard(request):
         ).select_related("order__quotation", "order__organization").prefetch_related(
             "payments"
         )
+        payments = Payment.objects.filter(
+            organization=organization,
+            is_cancelled=False,
+        ).select_related("order__quotation", "order__organization")
 
     now = timezone.now()
     open_leads = leads.exclude(status__in=[Lead.Status.WON, Lead.Status.LOST])
@@ -102,8 +247,9 @@ def dashboard(request):
         .annotate(total=Sum("estimated_value"))
         .order_by("currency")
     )
+    order_rows = list(orders)
     order_totals = defaultdict(lambda: Decimal("0"))
-    for order in orders:
+    for order in order_rows:
         total = order.total
         if total:
             order_totals[order.currency] += total
@@ -118,6 +264,12 @@ def dashboard(request):
         if plan.due_date < timezone.localdate() and plan.balance > 0
     ]
     cash_forecast = build_cash_forecast(active_payment_plans, timezone.localdate())
+    sales_analytics = build_sales_dashboard_analytics(
+        order_rows,
+        list(payments),
+        timezone.localdate(),
+        preferred_currency=organization.default_currency if organization else None,
+    )
 
     return render(
         request,
@@ -130,11 +282,13 @@ def dashboard(request):
             "open_lead_count": open_leads.count(),
             "pipeline_by_currency": pipeline_by_currency,
             "quotation_count": quotations.count(),
-            "order_count": orders.count(),
+            "order_count": len(order_rows),
             "orders_by_currency": orders_by_currency,
             "overdue_task_count": open_tasks.filter(due_at__lt=now).count(),
             "overdue_payment_count": len(overdue_payment_plans),
             "cash_forecast": cash_forecast,
+            "sales_analytics": sales_analytics,
+            "sales_analytics_default": sales_analytics[0] if sales_analytics else None,
             "upcoming_tasks": open_tasks.order_by("due_at", "created_at")[:6],
             "recent_leads": leads.order_by("-created_at")[:8],
         },
@@ -143,7 +297,7 @@ def dashboard(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_ORGANIZATION)
+@organization_permission_required(OrganizationPermission.VIEW_REPORTS)
 def sales_report(request):
     organization = request.organization
     form = SalesReportFilterForm(request.GET or None, organization=organization)

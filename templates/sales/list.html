@@ -13,7 +13,7 @@
         <input type="search" name="q" value="{{ query }}" placeholder="Taklif raqami yoki mijoz">
         <button class="button button-secondary" type="submit">{% include "shared/icon.html" with name="search" %}<span>Qidirish</span></button>
     </form>
-    {% if request.crm_permissions.manage_sales %}<a class="button" href="{% url 'sales:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi taklif</span></a>{% endif %}
+    {% if request.crm_permissions.create_sales %}<a class="button" href="{% url 'sales:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi taklif</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">
@@ -24,7 +24,7 @@
             <tr>
                 <td><a class="table-link" href="{% url 'sales:detail' quotation.public_id %}">{{ quotation.number }}</a></td>
                 <td>{{ quotation.customer }}</td>
-                <td><span class="badge">{{ quotation.get_status_display }}</span></td>
+                <td><span class="badge badge-status-{{ quotation.status }}">{{ quotation.get_status_display }}</span></td>
                 <td>{{ quotation.valid_until|date:"d.m.Y"|default:"—" }}</td>
                 <td>{{ quotation.total }} {{ quotation.currency }}</td>
                 <td>{% if quotation.created_by %}{{ quotation.created_by.get_full_name|default:quotation.created_by.email }}{% else %}—{% endif %}</td>

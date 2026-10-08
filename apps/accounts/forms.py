@@ -1,6 +1,42 @@
 from django import forms
 
-from .models import MailboxAccount
+from .models import MailboxAccount, User
+
+
+class ProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = (
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "avatar",
+            "preferred_language",
+        )
+        labels = {
+            "first_name": "Ism",
+            "last_name": "Familiya",
+            "email": "Email / login",
+            "phone": "Telefon",
+            "avatar": "Profil rasmi",
+            "preferred_language": "Interfeys tili",
+        }
+        widgets = {
+            "avatar": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp",
+                    "data-avatar-editor": "true",
+                }
+            )
+        }
+        help_texts = {
+            "avatar": "JPEG, PNG yoki WebP. Rasm kesilib va optimallashtirib saqlanadi.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].disabled = True
 
 
 class MailboxAccountForm(forms.ModelForm):

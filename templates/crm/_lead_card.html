@@ -2,9 +2,9 @@
     class="lead-card"
     href="{% url 'crm:detail' item.public_id %}"
     draggable="false"
-    {% if request.crm_permissions.manage_leads %}data-kanban-item{% endif %}
+    {% if request.crm_permissions.update_leads and item.record_editable %}data-kanban-item{% endif %}
     data-kanban-value="{{ item.status }}"
-    {% if request.crm_permissions.manage_leads %}data-kanban-update-url="{% url 'crm:status-update' item.public_id %}"{% endif %}
+    {% if request.crm_permissions.update_leads and item.record_editable %}data-kanban-update-url="{% url 'crm:status-update' item.public_id %}"{% endif %}
 >
     <div class="lead-card-top">
         <strong class="lead-card-title">{{ item.title }}</strong>

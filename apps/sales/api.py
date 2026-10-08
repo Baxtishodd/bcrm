@@ -1,7 +1,12 @@
 from rest_framework import serializers, viewsets
 
 from apps.common.api_permissions import OrganizationWritePermission
-from apps.common.permissions import OrganizationPermission
+from apps.common.permissions import (
+    OrganizationPermission,
+    can_edit_record,
+    can_manage_all_records,
+)
+from apps.common.tenancy import get_membership
 from apps.customers.api import current_organization
 
 from .models import Quotation, QuotationLine, SalesOrder
@@ -47,6 +52,11 @@ class QuotationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"customer": "Bu mijoz boshqa korxonaga tegishli."})
         if lead and lead.organization_id != organization.id:
             raise serializers.ValidationError({"lead": "Bu lead boshqa korxonaga tegishli."})
+        membership = get_membership(self.context["request"].user)
+        if lead and not can_edit_record(self.context["request"].user, membership, lead):
+            raise serializers.ValidationError(
+                {"lead": "Bu lead boshqa xodimga biriktirilgan."}
+            )
         if lead and lead.customer_id and customer and lead.customer_id != customer.id:
             raise serializers.ValidationError({"lead": "Lead tanlangan mijozga tegishli emas."})
         if contact and contact.organization_id != organization.id:
@@ -82,13 +92,24 @@ class QuotationViewSet(viewsets.ModelViewSet):
         ).prefetch_related("lines")
 
     def perform_create(self, serializer):
-        organization = current_organization(self.request.user)
+        membership = get_membership(self.request.user)
+        organization = membership.organization
         number = serializer.validated_data.get("number") or next_document_number(
             Quotation,
             organization,
             "QT",
         )
-        serializer.save(organization=organization, created_by=self.request.user, number=number)
+        values = {
+            "organization": organization,
+            "created_by": self.request.user,
+            "number": number,
+        }
+        if (
+            not can_manage_all_records(self.request.user, membership)
+            or serializer.validated_data.get("assigned_to") is None
+        ):
+            values["assigned_to"] = self.request.user
+        serializer.save(**values)
 
 
 class SalesOrderSerializer(serializers.ModelSerializer):
@@ -113,6 +134,15 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"customer": "Bu mijoz boshqa korxonaga tegishli."})
         if quotation and quotation.organization_id != organization.id:
             raise serializers.ValidationError({"quotation": "Bu taklif boshqa korxonaga tegishli."})
+        membership = get_membership(self.context["request"].user)
+        if quotation and not can_edit_record(
+            self.context["request"].user,
+            membership,
+            quotation,
+        ):
+            raise serializers.ValidationError(
+                {"quotation": "Bu taklif boshqa xodimga biriktirilgan."}
+            )
         if quotation and customer and quotation.customer_id != customer.id:
             raise serializers.ValidationError(
                 {"quotation": "Taklif tanlangan mijozga tegishli emas."}
@@ -142,10 +172,21 @@ class SalesOrderViewSet(viewsets.ModelViewSet):
         ).prefetch_related("lines")
 
     def perform_create(self, serializer):
-        organization = current_organization(self.request.user)
+        membership = get_membership(self.request.user)
+        organization = membership.organization
         number = serializer.validated_data.get("number") or next_document_number(
             SalesOrder,
             organization,
             "SO",
         )
-        serializer.save(organization=organization, created_by=self.request.user, number=number)
+        values = {
+            "organization": organization,
+            "created_by": self.request.user,
+            "number": number,
+        }
+        if (
+            not can_manage_all_records(self.request.user, membership)
+            or serializer.validated_data.get("assigned_to") is None
+        ):
+            values["assigned_to"] = self.request.user
+        serializer.save(**values)

@@ -1,23 +1,70 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Dashboard — BCRM{% endblock %}
 
 {% block content %}
 {% if organization %}
+<section class="panel sales-analytics" data-sales-analytics>
+    <div class="panel-heading sales-analytics-heading">
+        <div>
+            <p class="eyebrow">Savdo analitikasi</p>
+            <h2>Ushbu oy natijalari</h2>
+            <p class="analytics-period-note">Bugungi kungacha · o‘tgan oyning ayni davri bilan taqqoslanadi</p>
+        </div>
+        {% if sales_analytics %}
+        <label class="analytics-currency-picker">
+            <span>Valyuta</span>
+            <select data-analytics-currency>
+                {% for row in sales_analytics %}<option value="{{ row.currency }}">{{ row.currency }}</option>{% endfor %}
+            </select>
+        </label>
+        {% endif %}
+    </div>
+    {% if sales_analytics_default %}
+    <div class="analytics-kpis">
+        <article>
+            <span>Ushbu oy savdosi</span>
+            <strong data-analytics-value="current_sales">{{ sales_analytics_default.current_sales|floatformat:"2g" }} {{ sales_analytics_default.currency }}</strong>
+            <small data-analytics-change{% if sales_analytics_default.change_percent < 0 %} class="is-negative"{% endif %}>
+                {% if sales_analytics_default.change_percent == None %}Yangi davr{% elif sales_analytics_default.change_percent >= 0 %}+{% endif %}{{ sales_analytics_default.change_percent|default_if_none:"" }}{% if sales_analytics_default.change_percent != None %}%{% endif %}
+            </small>
+        </article>
+        <article><span>Ushbu oy tushumi</span><strong data-analytics-value="current_receipts">{{ sales_analytics_default.current_receipts|floatformat:"2g" }} {{ sales_analytics_default.currency }}</strong><small>Haqiqiy tushum</small></article>
+        <article><span>Qolgan qarz</span><strong data-analytics-value="outstanding">{{ sales_analytics_default.outstanding|floatformat:"2g" }} {{ sales_analytics_default.currency }}</strong><small>Barcha faol buyurtmalar</small></article>
+        <article><span>Buyurtmalar</span><strong data-analytics-value="order_count">{{ sales_analytics_default.order_count }}</strong><small>Ushbu oy</small></article>
+        <article><span>O‘rtacha buyurtma</span><strong data-analytics-value="average_order">{{ sales_analytics_default.average_order|floatformat:"2g" }} {{ sales_analytics_default.currency }}</strong><small data-analytics-currency-label>{{ sales_analytics_default.currency }}</small></article>
+    </div>
+    <div class="analytics-chart-grid">
+        <article class="analytics-chart-card">
+            <header><div><span>Kunlik dinamika</span><h3>Ushbu oy va o‘tgan oy</h3></div><div class="chart-legend"><span class="legend-current">Ushbu oy</span><span class="legend-previous">O‘tgan oy</span></div></header>
+            <div class="analytics-chart" data-chart="daily" role="img" aria-label="Ushbu oy va o'tgan oy savdolari grafigi"></div>
+        </article>
+        <article class="analytics-chart-card">
+            <header><div><span>12 oylik trend</span><h3>Savdo va tushum</h3></div><div class="chart-legend"><span class="legend-sales">Savdo</span><span class="legend-receipts">Tushum</span></div></header>
+            <div class="analytics-chart" data-chart="monthly" role="img" aria-label="Oxirgi 12 oydagi savdo va tushum grafigi"></div>
+        </article>
+    </div>
+    {% else %}
+    <div class="analytics-empty"><strong>Analitika uchun savdo ma’lumoti yo‘q</strong><span>Buyurtma yoki tushum kiritilgach grafiklar shu yerda ko‘rinadi.</span></div>
+    {% endif %}
+</section>
+{{ sales_analytics|json_script:"sales-analytics-data" }}
+
 <section class="stats">
-    <article><span>Ochiq leadlar</span><strong>{{ open_lead_count }}</strong><small>Jami: {{ lead_count }}</small></article>
-    <article><span>Mijozlar</span><strong>{{ customer_count }}</strong></article>
+    <article><span>Ochiq leadlar</span><strong data-count-up="{{ open_lead_count }}">{{ open_lead_count }}</strong><small>Jami: {{ lead_count }}</small></article>
+    <article><span>Mijozlar</span><strong data-count-up="{{ customer_count }}">{{ customer_count }}</strong></article>
     <article><span>Pipeline qiymati</span>{% for row in pipeline_by_currency %}<strong class="stat-money">{{ row.total|floatformat:"2g" }} <small>{{ row.currency }}</small></strong>{% empty %}<strong class="stat-money">0.00</strong>{% endfor %}</article>
-    <article><span>Tijorat takliflari</span><strong>{{ quotation_count }}</strong></article>
-    <article><span>Buyurtmalar</span><strong>{{ order_count }}</strong>{% for row in orders_by_currency %}<small class="stat-money-line">{{ row.total|floatformat:"2g" }} {{ row.currency }}</small>{% empty %}<small>Summa mavjud emas</small>{% endfor %}</article>
-    <article><span>Kechikkan vazifalar</span><strong>{{ overdue_task_count }}</strong></article>
-    <article><span>Kechikkan to'lovlar</span><strong>{{ overdue_payment_count }}</strong><small>ta reja</small></article>
+    <article><span>Tijorat takliflari</span><strong data-count-up="{{ quotation_count }}">{{ quotation_count }}</strong></article>
+    <article><span>Buyurtmalar</span><strong data-count-up="{{ order_count }}">{{ order_count }}</strong>{% for row in orders_by_currency %}<small class="stat-money-line">{{ row.total|floatformat:"2g" }} {{ row.currency }}</small>{% empty %}<small>Summa mavjud emas</small>{% endfor %}</article>
+    <article><span>Kechikkan vazifalar</span><strong data-count-up="{{ overdue_task_count }}">{{ overdue_task_count }}</strong></article>
+    <article><span>Kechikkan to'lovlar</span><strong data-count-up="{{ overdue_payment_count }}">{{ overdue_payment_count }}</strong><small>ta reja</small></article>
 </section>
 
 <section class="panel report-direction-panel">
     <div class="panel-heading">
         <div><p class="eyebrow">Pul oqimi</p><h2>7/30 kunlik tushum prognozi</h2></div>
-        {% if request.crm_permissions.manage_organization %}<a class="button button-secondary" href="{% url 'sales-report' %}">{% include "shared/icon.html" with name="reports" %}<span>Batafsil hisobot</span></a>{% endif %}
+        {% if request.crm_permissions.view_reports %}<a class="button button-secondary" href="{% url 'sales-report' %}">{% include "shared/icon.html" with name="reports" %}<span>Batafsil hisobot</span></a>{% endif %}
     </div>
     <div class="table-wrap"><table>
         <thead><tr><th>Valyuta</th><th>Muddati o'tgan</th><th>Keyingi 7 kun</th><th>Keyingi 30 kun</th></tr></thead>
@@ -52,7 +99,7 @@
                         </a>
                     </td>
                     <td>{{ lead.customer|default:"—" }}</td>
-                    <td><span class="badge">{{ lead.get_status_display }}</span></td>
+                    <td><span class="badge badge-status-{{ lead.status }}">{{ lead.get_status_display }}</span></td>
                     <td>{{ lead.estimated_value }} {{ lead.currency }}</td>
                     <td>{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.email }}{% else %}—{% endif %}</td>
                 </tr>
@@ -99,4 +146,8 @@
     </a>
 </section>
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/sales-analytics.js' %}?v=20261008-1" defer></script>
 {% endblock %}

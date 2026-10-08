@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
 from decimal import Decimal
 from io import BytesIO
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -128,6 +129,64 @@ class QuotationConversionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_quotation_detail_opens_global_email_compose(self):
+        response = self.client.get(
+            reverse("sales:detail", args=[self.quotation.public_id])
+        )
+        compose_url = (
+            f'{reverse("communications:email-compose")}'
+            f'?quotation={self.quotation.public_id}'
+        )
+
+        self.assertContains(response, f'href="{compose_url}"')
+        self.assertContains(response, "data-email-compose-trigger")
+
+    def test_quotation_compose_fragment_is_prefilled(self):
+        response = self.client.get(
+            reverse("communications:email-compose"),
+            {"quotation": self.quotation.public_id},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="buyer@example.com"')
+        self.assertContains(response, self.quotation.number)
+        self.assertContains(response, f'value="{self.quotation.public_id}"')
+
+    @patch("apps.communications.views.deliver_email_message", return_value=True)
+    def test_global_compose_sends_quotation_pdf_and_records_workflow(self, deliver):
+        with TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("communications:email-compose"),
+                {
+                    "mailbox": self.mailbox.pk,
+                    "to": "buyer@example.com",
+                    "cc": "",
+                    "bcc": "",
+                    "send_mode": "individual",
+                    "subject": "Test quotation",
+                    "body": "Taklif PDF ilovada.",
+                    "body_html": "<p>Taklif <strong>PDF</strong> ilovada.</p>",
+                    "quotation": self.quotation.public_id,
+                },
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        message = deliver.call_args.args[0]
+        self.assertEqual(message.attachments.count(), 1)
+        self.assertTrue(message.attachments.get().original_name.endswith(".pdf"))
+        self.assertTrue(
+            self.quotation.deliveries.filter(
+                channel=QuotationDelivery.Channel.EMAIL,
+                status=QuotationDelivery.Status.SENT,
+            ).exists()
+        )
+        self.assertTrue(Activity.objects.filter(customer=self.customer).exists())
+        self.quotation.refresh_from_db()
+        self.assertEqual(self.quotation.status, Quotation.Status.SENT)
+
     def test_conversion_creates_one_order_and_copies_lines(self):
         order, created = convert_quotation_to_order(self.quotation, self.user)
         duplicate, duplicate_created = convert_quotation_to_order(self.quotation, self.user)
@@ -184,12 +243,15 @@ class QuotationConversionTests(TestCase):
         self.assertEqual(plan.received_amount, Decimal("400000"))
         self.assertEqual(plan.balance, Decimal("600000"))
         self.assertEqual(plan.payment_status, "Qisman to'langan")
+        self.assertEqual(plan.payment_status_code, "partial")
+        self.assertEqual(order.payment_status_code, "partial")
 
         detail_response = self.client.get(
             reverse("sales:order-detail", args=[order.public_id])
         )
         self.assertContains(detail_response, "PAY-001")
         self.assertContains(detail_response, "1000000,00")
+        self.assertContains(detail_response, "badge-status-partial", count=2)
 
         payment.delete()
         order.refresh_from_db()
@@ -793,6 +855,7 @@ class LeadQuotationWorkflowTests(TestCase):
         lead = Lead.objects.create(
             organization=self.organization,
             title="Customer missing",
+            assigned_to=self.user,
         )
 
         response = self.client.get(reverse("sales:create-from-lead", args=[lead.public_id]))

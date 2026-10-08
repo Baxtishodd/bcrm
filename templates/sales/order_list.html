@@ -20,10 +20,10 @@
     <tbody>
     {% for order in orders %}<tr>
         <td><a class="table-link" href="{% url 'sales:order-detail' order.public_id %}">{{ order.number }}</a></td>
-        <td>{{ order.customer }}</td><td><span class="badge">{{ order.get_status_display }}</span></td>
+        <td>{{ order.customer }}</td><td><span class="badge badge-status-{{ order.status }}">{{ order.get_status_display }}</span></td>
         <td>{{ order.order_date|date:"d.m.Y" }}</td><td>{{ order.delivery_date|date:"d.m.Y"|default:"—" }}</td>
         <td>{{ order.total|floatformat:2 }} {{ order.currency }}</td>
-        <td>{{ order.payment_status }}</td>
+        <td><span class="badge badge-status-{{ order.payment_status_code }}">{{ order.payment_status }}</span></td>
         <td>{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.email }}{% else %}—{% endif %}</td>
     </tr>{% empty %}<tr><td colspan="8" class="empty">Buyurtmalar topilmadi. Qabul qilingan taklifdan buyurtma yarating.</td></tr>{% endfor %}
     </tbody>

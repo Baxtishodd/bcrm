@@ -11,7 +11,7 @@ from email.utils import formataddr, getaddresses, make_msgid, parseaddr, parseda
 from pathlib import Path
 
 from django.core.files.base import ContentFile
-from django.core.mail import EmailMessage, get_connection
+from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
 from django.db import transaction
 from django.utils import timezone
 from django.utils.html import strip_tags
@@ -378,7 +378,9 @@ def deliver_email_message(message):
         use_ssl=account.smtp_security == MailboxAccount.Security.SSL,
         timeout=30,
     )
-    outgoing = EmailMessage(
+    body_html = (message.metadata or {}).get("body_html", "")
+    message_class = EmailMultiAlternatives if body_html else EmailMessage
+    outgoing = message_class(
         subject=subject,
         body=message.body,
         from_email=formataddr((account.display_name, account.email)),
@@ -388,6 +390,8 @@ def deliver_email_message(message):
         headers=headers,
         connection=connection,
     )
+    if body_html:
+        outgoing.attach_alternative(body_html, "text/html")
     for attachment in message.attachments.all():
         attachment.file.open("rb")
         try:

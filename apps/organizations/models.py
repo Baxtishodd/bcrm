@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -79,6 +80,66 @@ class Branch(TimeStampedModel):
         return f"{self.organization} — {self.name}"
 
 
+class OrganizationRole(TimeStampedModel):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="custom_roles",
+    )
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "name"],
+                name="uniq_organization_role_name",
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class RolePermission(TimeStampedModel):
+    class Module(models.TextChoices):
+        ORGANIZATION = "organization", "Tashkilot va xodimlar"
+        CUSTOMERS = "customers", "Mijozlar va kontaktlar"
+        LEADS = "leads", "Leadlar"
+        TASKS = "tasks", "Vazifalar"
+        CATALOG = "catalog", "Mahsulotlar"
+        SALES = "sales", "Savdo"
+        REPORTS = "reports", "Hisobotlar"
+        MAILBOX = "mailbox", "Mijozlar xabarlari"
+
+    class Action(models.TextChoices):
+        VIEW = "view", "Ko‘rish"
+        CREATE = "create", "Yaratish"
+        UPDATE = "update", "Tahrirlash"
+        DELETE = "delete", "O‘chirish"
+
+    role = models.ForeignKey(
+        OrganizationRole,
+        on_delete=models.CASCADE,
+        related_name="permission_entries",
+    )
+    module = models.CharField(max_length=30, choices=Module.choices)
+    action = models.CharField(max_length=20, choices=Action.choices)
+
+    class Meta:
+        ordering = ["module", "action"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role", "module", "action"],
+                name="uniq_role_module_action",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.role}: {self.module}.{self.action}"
+
+
 class Membership(TimeStampedModel):
     class Role(models.TextChoices):
         OWNER = "owner", "Egasi"
@@ -107,6 +168,20 @@ class Membership(TimeStampedModel):
         on_delete=models.SET_NULL,
     )
     role = models.CharField(max_length=30, choices=Role.choices)
+    custom_role = models.ForeignKey(
+        OrganizationRole,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="memberships",
+    )
+    can_manage_all_records = models.BooleanField(
+        default=False,
+        help_text=(
+            "Xodimga boshqa xodimlarga biriktirilgan mijoz, kontakt, lead, "
+            "vazifa va savdo yozuvlarini o'zgartirish huquqini beradi."
+        ),
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -116,3 +191,19 @@ class Membership(TimeStampedModel):
                 name="uniq_org_user",
             )
         ]
+
+    @property
+    def role_name(self):
+        if self.custom_role_id:
+            return self.custom_role.name
+        return self.get_role_display()
+
+    def clean(self):
+        super().clean()
+        if (
+            self.custom_role_id
+            and self.custom_role.organization_id != self.organization_id
+        ):
+            raise ValidationError(
+                {"custom_role": "Rol xodim bilan bir tashkilotga tegishli bo‘lishi kerak."}
+            )

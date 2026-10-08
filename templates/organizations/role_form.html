@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — BCRM{% endblock %}
+{% block heading %}{{ page_title }}{% endblock %}
+
+{% block content %}
+{% url 'organizations:roles' as roles_url %}
+{% include "shared/page_navigation.html" with back_url=roles_url back_label="Rollar ro‘yxatiga qaytish" parent_label="Rollar va ruxsatlar" current_label=page_title %}
+<form method="post" class="role-editor">
+    {% csrf_token %}
+    <section class="panel form-panel">
+        {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-grid">
+            <div class="field">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                {{ form.name.errors }}
+            </div>
+            <div class="field">
+                <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                {{ form.description }}
+                {{ form.description.errors }}
+            </div>
+        </div>
+    </section>
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <p class="eyebrow">RUXSATLAR MATRITSASI</p>
+                <h2>Modullar va amallar</h2>
+            </div>
+            <p class="muted">Ko‘rish huquqi bo‘lmasa, modul menyuda ham ko‘rinmaydi.</p>
+        </div>
+        <div class="table-wrap">
+            <table class="permission-matrix">
+                <thead>
+                    <tr><th>Modul</th><th>Ko‘rish</th><th>Yaratish</th><th>Tahrirlash</th><th>O‘chirish</th></tr>
+                </thead>
+                <tbody>
+                {% for row in permission_rows %}
+                    <tr>
+                        <th scope="row">{{ row.label }}</th>
+                        {% for field in row.fields %}
+                        <td>
+                            <label class="permission-toggle" for="{{ field.id_for_label }}">
+                                {{ field }}<span aria-hidden="true"></span>
+                                <span class="sr-only">{{ field.label }}</span>
+                            </label>
+                            {{ field.errors }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <div class="form-actions">
+        <a class="button button-secondary" href="{{ roles_url }}">{% include "shared/icon.html" with name="arrow-left" %}<span>Bekor qilish</span></a>
+        <button class="button" type="submit">{% include "shared/icon.html" with name="save" %}<span>{{ submit_label }}</span></button>
+    </div>
+</form>
+{% endblock %}

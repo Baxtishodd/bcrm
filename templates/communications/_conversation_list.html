@@ -1,23 +1,32 @@
 {% for conversation in conversations %}
-<a class="conversation-item{% if selected_conversation.pk == conversation.pk %} active{% endif %}" href="{% url 'communications:conversation' conversation.public_id %}" data-conversation-id="{{ conversation.public_id }}">
-    {% if conversation.telegram_avatar %}
+<a class="conversation-item{% if selected_conversation.pk == conversation.pk %} active{% endif %}" href="{% if team_mode %}{% url 'communications:team-conversation' conversation.public_id %}{% else %}{% url 'communications:conversation' conversation.public_id %}{% endif %}" data-conversation-id="{{ conversation.public_id }}">
+    {% if team_mode and conversation.team_peer.avatar %}
+    <img class="conversation-avatar conversation-avatar-image" src="{{ conversation.team_peer.avatar.url }}" alt="{{ conversation.team_peer.get_full_name|default:conversation.team_peer.email }}">
+    {% elif conversation.telegram_avatar %}
     <img class="conversation-avatar conversation-avatar-image" src="{{ conversation.telegram_avatar.url }}" alt="{{ conversation.display_title }}">
     {% else %}
-    <span class="conversation-avatar">{{ conversation.display_title|first|upper }}</span>
+    <span class="conversation-avatar">{% if team_mode %}{{ conversation.team_peer.get_full_name|default:conversation.team_peer.email|first|upper }}{% else %}{{ conversation.display_title|first|upper }}{% endif %}</span>
     {% endif %}
     <span class="conversation-summary">
         <span class="conversation-row">
+            {% if team_mode %}
+            <strong title="{{ conversation.team_peer.get_full_name|default:conversation.team_peer.email }}">{{ conversation.team_peer.get_full_name|default:conversation.team_peer.email }}</strong>
+            {% else %}
             <strong title="{{ conversation.display_title }}">{{ conversation.display_title }}</strong>
+            {% endif %}
             <time>{{ conversation.last_message_at|date:"H:i" }}</time>
         </span>
         <span class="conversation-row">
             <small class="conversation-preview">
                 {% if conversation.last_message_at %}{{ conversation.latest_message_body|default:"Fayl"|truncatechars:42 }}{% else %}Xabarlar hali yo'q{% endif %}
             </small>
-            {% if conversation.unread_count %}<span class="unread-count">{{ conversation.unread_count }}</span>{% endif %}
+            {% if conversation.display_unread_count %}<span class="unread-count">{{ conversation.display_unread_count }}</span>{% endif %}
         </span>
         <span class="conversation-meta">
-            <span class="channel-label channel-{{ conversation.channel }}">{{ conversation.get_channel_display }}</span>
+            <span class="channel-label channel-{{ conversation.channel }}">{% if team_mode %}Jamoa{% else %}{{ conversation.get_channel_display }}{% endif %}</span>
+            {% if team_mode %}
+            <small class="conversation-email" title="{{ conversation.team_peer.email }}">{{ conversation.team_peer.email }}</small>
+            {% endif %}
             {% if conversation.channel == "email" and conversation.external_chat_id %}
             <small class="conversation-email" title="{{ conversation.external_chat_id }}">{{ conversation.external_chat_id }}</small>
             {% endif %}
@@ -27,6 +36,6 @@
 {% empty %}
 <div class="conversation-empty">
     <strong>Suhbat topilmadi</strong>
-    <p>Yangi suhbat oching yoki qidiruv filtrini tozalang.</p>
+    <p>{% if team_mode %}Xodimlar sahifasidan hamkasbingizga xabar yuborishni boshlang.{% else %}Yangi suhbat oching yoki qidiruv filtrini tozalang.{% endif %}</p>
 </div>
 {% endfor %}

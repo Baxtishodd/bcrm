@@ -11,10 +11,14 @@
         <div class="panel-heading">
             <div><p class="eyebrow">Lead</p><h2>{{ lead.get_status_display }}</h2></div>
             <div class="button-row">
-                {% if request.crm_permissions.manage_leads %}
+                {% if request.crm_permissions.create_mailbox %}
+                {% if lead.contact.email %}<a class="button button-secondary" href="{% url 'communications:email-compose' %}?to={{ lead.contact.email|urlencode }}&subject={{ lead.title|urlencode }}" data-email-compose-trigger>{% include "shared/icon.html" with name="email" %}<span>Email</span></a>
+                {% elif lead.customer.email %}<a class="button button-secondary" href="{% url 'communications:email-compose' %}?to={{ lead.customer.email|urlencode }}&subject={{ lead.title|urlencode }}" data-email-compose-trigger>{% include "shared/icon.html" with name="email" %}<span>Email</span></a>{% endif %}
+                {% endif %}
+                {% if request.crm_permissions.update_leads and record_editable %}
                 <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>
                 {% endif %}
-                {% if request.crm_permissions.manage_sales %}
+                {% if record_editable and request.crm_permissions.create_sales or record_editable and request.crm_permissions.update_sales %}
                 {% if lead.status == "won" and linked_order %}
                 <a class="button" href="{% url 'sales:order-detail' linked_order.public_id %}">Buyurtmani ko'rish</a>
                 {% elif lead.status == "won" and orderable_quotation %}
@@ -47,7 +51,7 @@
     <article class="panel detail-card">
         <div class="panel-heading">
             <div><p class="eyebrow">Timeline</p><h2>Faoliyatlar</h2></div>
-            {% if request.crm_permissions.manage_tasks %}<a class="button" href="{% url 'crm:activity-create' lead.public_id %}">Faoliyat qo'shish</a>{% endif %}
+            {% if request.crm_permissions.create_tasks and record_editable %}<a class="button" href="{% url 'crm:activity-create' lead.public_id %}">Faoliyat qo'shish</a>{% endif %}
         </div>
         {% include "shared/communication_timeline.html" %}
     </article>
@@ -55,9 +59,9 @@
 <section class="panel detail-card quotation-history">
     <div class="panel-heading">
         <div><p class="eyebrow">Savdo</p><h2>Takliflar tarixi</h2></div>
-        {% if request.crm_permissions.manage_sales and lead.customer_id %}
+        {% if request.crm_permissions.create_sales and lead.customer_id and record_editable %}
         <a class="button" href="{% url 'sales:create-from-lead' lead.public_id %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi taklif</span></a>
-        {% elif request.crm_permissions.manage_leads and not lead.customer_id %}
+        {% elif request.crm_permissions.update_leads and not lead.customer_id and record_editable %}
         <a class="button button-secondary" href="{% url 'crm:update' lead.public_id %}">Mijoz biriktirish</a>
         {% endif %}
     </div>
@@ -68,7 +72,7 @@
             {% for quotation in lead.quotations.all %}
             <tr>
                 <td><a class="table-link" href="{% url 'sales:detail' quotation.public_id %}">{{ quotation.number }}</a></td>
-                <td><span class="badge">{{ quotation.get_status_display }}</span></td>
+                <td><span class="badge badge-status-{{ quotation.status }}">{{ quotation.get_status_display }}</span></td>
                 <td>{{ quotation.total }} {{ quotation.currency }}</td>
                 <td>{{ quotation.valid_until|date:"d.m.Y"|default:"—" }}</td>
                 <td>{{ quotation.created_at|date:"d.m.Y H:i" }}</td>

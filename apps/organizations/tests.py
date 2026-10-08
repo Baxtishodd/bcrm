@@ -10,7 +10,7 @@ from PIL import Image
 from apps.accounts.models import User
 
 from .forms import OrganizationSettingsForm
-from .models import Membership, Organization
+from .models import Membership, Organization, OrganizationRole, RolePermission
 
 
 class OrganizationSettingsTests(TestCase):
@@ -435,3 +435,202 @@ class EmployeeManagementTests(TestCase):
         self.assertEqual(employee.first_name, "Updated")
         self.assertEqual(membership.role, Membership.Role.ACCOUNTANT)
         self.assertFalse(membership.is_active)
+
+    def test_owner_can_grant_cross_employee_record_access(self):
+        employee = User.objects.create_user(
+            email="trusted-manager@example.com",
+            password="test-password",
+            first_name="Trusted",
+        )
+        membership = Membership.objects.create(
+            organization=self.organization,
+            user=employee,
+            role=Membership.Role.SALES,
+        )
+
+        response = self.client.post(
+            reverse("organizations:employee-update", args=[membership.public_id]),
+            {
+                "first_name": employee.first_name,
+                "last_name": "",
+                "email": employee.email,
+                "phone": "",
+                "role": Membership.Role.SALES,
+                "branch": "",
+                "is_active": "on",
+                "can_manage_all_records": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("organizations:employees"))
+        membership.refresh_from_db()
+        self.assertTrue(membership.can_manage_all_records)
+
+
+class CustomRoleManagementTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            email="role-owner@example.com",
+            password="test-password",
+        )
+        self.employee = User.objects.create_user(
+            email="role-employee@example.com",
+            password="test-password",
+        )
+        self.organization = Organization.objects.create(
+            name="Role Textile",
+            slug="role-textile",
+        )
+        Membership.objects.create(
+            organization=self.organization,
+            user=self.owner,
+            role=Membership.Role.OWNER,
+        )
+        self.employee_membership = Membership.objects.create(
+            organization=self.organization,
+            user=self.employee,
+            role=Membership.Role.VIEWER,
+        )
+        self.client.force_login(self.owner)
+
+    def role_data(self, **overrides):
+        data = {
+            "name": "Junior sotuvchi",
+            "description": "Mijozlarni ko'radi va lead yaratadi",
+            "permission_customers_view": "on",
+            "permission_leads_view": "on",
+            "permission_leads_create": "on",
+        }
+        data.update(overrides)
+        return data
+
+    def test_owner_can_create_role_with_permission_matrix(self):
+        response = self.client.post(
+            reverse("organizations:role-create"),
+            self.role_data(),
+        )
+
+        self.assertRedirects(response, reverse("organizations:roles"))
+        role = OrganizationRole.objects.get(
+            organization=self.organization,
+            name="Junior sotuvchi",
+        )
+        self.assertSetEqual(
+            set(role.permission_entries.values_list("module", "action")),
+            {
+                (RolePermission.Module.CUSTOMERS, RolePermission.Action.VIEW),
+                (RolePermission.Module.LEADS, RolePermission.Action.VIEW),
+                (RolePermission.Module.LEADS, RolePermission.Action.CREATE),
+            },
+        )
+
+    def test_non_owner_cannot_manage_roles(self):
+        self.client.force_login(self.employee)
+
+        self.assertEqual(
+            self.client.get(reverse("organizations:roles")).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(
+                reverse("organizations:role-create"),
+                self.role_data(),
+            ).status_code,
+            403,
+        )
+
+    def test_custom_role_enforces_view_create_and_update_separately(self):
+        role = OrganizationRole.objects.create(
+            organization=self.organization,
+            name="Cheklangan sotuvchi",
+        )
+        RolePermission.objects.bulk_create(
+            [
+                RolePermission(
+                    role=role,
+                    module=RolePermission.Module.CUSTOMERS,
+                    action=RolePermission.Action.VIEW,
+                ),
+                RolePermission(
+                    role=role,
+                    module=RolePermission.Module.LEADS,
+                    action=RolePermission.Action.VIEW,
+                ),
+                RolePermission(
+                    role=role,
+                    module=RolePermission.Module.LEADS,
+                    action=RolePermission.Action.CREATE,
+                ),
+            ]
+        )
+        self.employee_membership.custom_role = role
+        self.employee_membership.save(update_fields=["custom_role", "updated_at"])
+        self.client.force_login(self.employee)
+
+        self.assertEqual(self.client.get(reverse("customers:list")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("customers:create")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("crm:list")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("crm:create")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("catalog:list")).status_code, 403)
+
+    def test_assigned_role_cannot_be_deleted(self):
+        role = OrganizationRole.objects.create(
+            organization=self.organization,
+            name="Band rol",
+        )
+        self.employee_membership.custom_role = role
+        self.employee_membership.save(update_fields=["custom_role", "updated_at"])
+
+        response = self.client.post(
+            reverse("organizations:role-delete", args=[role.public_id])
+        )
+
+        self.assertRedirects(response, reverse("organizations:roles"))
+        self.assertTrue(OrganizationRole.objects.filter(pk=role.pk).exists())
+
+        list_response = self.client.get(reverse("organizations:roles"))
+        self.assertContains(list_response, "role-action-edit")
+        self.assertContains(list_response, "role-action-delete")
+        self.assertContains(list_response, "disabled")
+
+    def test_role_edit_has_working_back_navigation(self):
+        role = OrganizationRole.objects.create(
+            organization=self.organization,
+            name="Tahrirlanadigan rol",
+        )
+
+        response = self.client.get(
+            reverse("organizations:role-update", args=[role.public_id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("organizations:roles"))
+        self.assertContains(response, "Rollar ro‘yxatiga qaytish")
+        self.assertContains(response, "Rollar va ruxsatlar")
+
+    def test_owner_can_assign_custom_role_to_employee(self):
+        role = OrganizationRole.objects.create(
+            organization=self.organization,
+            name="Maxsus menejer",
+        )
+
+        response = self.client.post(
+            reverse(
+                "organizations:employee-update",
+                args=[self.employee_membership.public_id],
+            ),
+            {
+                "first_name": "Maxsus",
+                "last_name": "Menejer",
+                "email": self.employee.email,
+                "phone": "",
+                "role": f"custom:{role.public_id}",
+                "branch": "",
+                "is_active": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("organizations:employees"))
+        self.employee_membership.refresh_from_db()
+        self.assertEqual(self.employee_membership.custom_role, role)
+        self.assertEqual(self.employee_membership.role_name, "Maxsus menejer")

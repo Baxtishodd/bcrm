@@ -1,7 +1,8 @@
 from rest_framework import serializers, viewsets
 
 from apps.common.api_permissions import OrganizationWritePermission
-from apps.common.permissions import OrganizationPermission
+from apps.common.permissions import OrganizationPermission, can_manage_all_records
+from apps.common.tenancy import get_membership
 from apps.customers.api import current_organization
 
 from .models import Activity, Lead
@@ -88,4 +89,11 @@ class LeadViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        serializer.save(organization=current_organization(self.request.user))
+        membership = get_membership(self.request.user)
+        values = {"organization": membership.organization}
+        if (
+            not can_manage_all_records(self.request.user, membership)
+            or serializer.validated_data.get("assigned_to") is None
+        ):
+            values["assigned_to"] = self.request.user
+        serializer.save(**values)

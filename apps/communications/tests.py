@@ -19,6 +19,7 @@ from apps.organizations.models import Membership, Organization
 from .mailbox import deliver_email_message, import_email_message, sync_mailbox
 from .models import (
     Conversation,
+    ConversationParticipant,
     MailboxSyncState,
     Message,
     MessageAttachment,
@@ -50,6 +51,17 @@ class CommunicationFrontendTests(TestCase):
             user=self.user,
             role=Membership.Role.SALES,
         )
+        self.internal_peer = User.objects.create_user(
+            email="peer@example.com",
+            password="test-password",
+            first_name="Ichki",
+            last_name="Hamkasb",
+        )
+        Membership.objects.create(
+            organization=self.organization,
+            user=self.internal_peer,
+            role=Membership.Role.SALES,
+        )
         self.customer = CustomerCompany.objects.create(
             organization=self.organization,
             name="Atlas Trade",
@@ -73,6 +85,16 @@ class CommunicationFrontendTests(TestCase):
             lead=self.lead,
             assigned_to=self.user,
         )
+        ConversationParticipant.objects.create(
+            organization=self.organization,
+            conversation=self.conversation,
+            user=self.user,
+        )
+        ConversationParticipant.objects.create(
+            organization=self.organization,
+            conversation=self.conversation,
+            user=self.internal_peer,
+        )
         self.client.force_login(self.user)
 
     def test_inbox_renders_two_pane_chat_and_linked_objects(self):
@@ -86,13 +108,12 @@ class CommunicationFrontendTests(TestCase):
         )
 
         response = self.client.get(
-            reverse("communications:conversation", args=[self.conversation.public_id])
+            reverse("communications:team-conversation", args=[self.conversation.public_id])
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Assalomu alaykum")
         self.assertContains(response, "Ali Valiyev")
-        self.assertContains(response, reverse("crm:detail", args=[self.lead.public_id]))
         self.conversation.refresh_from_db()
         self.assertEqual(self.conversation.unread_count, 0)
 
@@ -121,7 +142,7 @@ class CommunicationFrontendTests(TestCase):
         message = Message.objects.get(body="Taklifni bugun yuboramiz.")
         self.assertRedirects(
             response,
-            reverse("communications:conversation", args=[self.conversation.public_id]),
+            reverse("communications:team-conversation", args=[self.conversation.public_id]),
         )
         self.assertEqual(message.organization, self.organization)
         self.assertEqual(message.sender, self.user)
@@ -150,7 +171,7 @@ class CommunicationFrontendTests(TestCase):
         )
 
         response = self.client.get(
-            reverse("communications:sync"),
+            reverse("communications:team-sync"),
             {"conversation": self.conversation.public_id, "after": existing.id},
         )
 
@@ -174,7 +195,7 @@ class CommunicationFrontendTests(TestCase):
         )
 
         response = self.client.get(
-            reverse("communications:sync"),
+            reverse("communications:team-sync"),
             {"conversation": hidden_conversation.public_id},
         )
 
@@ -279,8 +300,183 @@ class CommunicationFrontendTests(TestCase):
         self.assertContains(response, "Timeline xabari")
         self.assertContains(
             response,
-            reverse("communications:conversation", args=[self.conversation.public_id]),
+            reverse("communications:team-conversation", args=[self.conversation.public_id]),
         )
+
+
+class InternalTeamChatTests(TestCase):
+    def setUp(self):
+        self.organization = Organization.objects.create(
+            name="Team Chat Textile",
+            slug="team-chat-textile",
+        )
+        self.owner = User.objects.create_user(
+            email="owner@team-chat.uz",
+            password="test-password",
+            first_name="Owner",
+        )
+        self.employee = User.objects.create_user(
+            email="employee@team-chat.uz",
+            password="test-password",
+            first_name="Employee",
+        )
+        self.third_user = User.objects.create_user(
+            email="third@team-chat.uz",
+            password="test-password",
+            first_name="Third",
+        )
+        self.owner_membership = Membership.objects.create(
+            organization=self.organization,
+            user=self.owner,
+            role=Membership.Role.OWNER,
+        )
+        self.employee_membership = Membership.objects.create(
+            organization=self.organization,
+            user=self.employee,
+            role=Membership.Role.PRODUCTION,
+        )
+        Membership.objects.create(
+            organization=self.organization,
+            user=self.third_user,
+            role=Membership.Role.VIEWER,
+        )
+        self.client.force_login(self.owner)
+
+    def start_chat(self):
+        return self.client.post(
+            reverse(
+                "communications:team-start",
+                args=[self.employee_membership.public_id],
+            )
+        )
+
+    def test_employee_list_shows_message_action_for_other_active_employee(self):
+        response = self.client.get(reverse("organizations:employees"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse(
+                "communications:team-start",
+                args=[self.employee_membership.public_id],
+            ),
+        )
+        self.assertNotContains(
+            response,
+            reverse(
+                "communications:team-start",
+                args=[self.owner_membership.public_id],
+            ),
+        )
+
+    def test_start_action_creates_or_reuses_private_direct_chat(self):
+        first_response = self.start_chat()
+        second_response = self.start_chat()
+
+        conversation = Conversation.objects.get(channel=Conversation.Channel.INTERNAL)
+        self.assertRedirects(
+            first_response,
+            reverse("communications:team-conversation", args=[conversation.public_id]),
+        )
+        self.assertEqual(second_response.url, first_response.url)
+        self.assertEqual(Conversation.objects.filter(channel="internal").count(), 1)
+        self.assertCountEqual(
+            conversation.participants.values_list("user_id", flat=True),
+            [self.owner.id, self.employee.id],
+        )
+
+    def test_start_action_reuses_legacy_chat_without_direct_key(self):
+        legacy = Conversation.objects.create(
+            organization=self.organization,
+            channel=Conversation.Channel.INTERNAL,
+            title="Eski suhbat",
+        )
+        ConversationParticipant.objects.bulk_create(
+            [
+                ConversationParticipant(
+                    organization=self.organization,
+                    conversation=legacy,
+                    user=self.owner,
+                ),
+                ConversationParticipant(
+                    organization=self.organization,
+                    conversation=legacy,
+                    user=self.employee,
+                ),
+            ]
+        )
+
+        response = self.start_chat()
+
+        legacy.refresh_from_db()
+        self.assertEqual(Conversation.objects.filter(channel="internal").count(), 1)
+        self.assertEqual(legacy.internal_direct_key, f"{self.owner.id}:{self.employee.id}")
+        self.assertRedirects(
+            response,
+            reverse("communications:team-conversation", args=[legacy.public_id]),
+        )
+
+    def test_message_reaches_recipient_and_chat_is_private(self):
+        self.start_chat()
+        conversation = Conversation.objects.get(channel=Conversation.Channel.INTERNAL)
+
+        send_response = self.client.post(
+            reverse("communications:send", args=[conversation.public_id]),
+            {"body": "Ishlab chiqarish rejasini yuboring."},
+        )
+
+        self.assertRedirects(
+            send_response,
+            reverse("communications:team-conversation", args=[conversation.public_id]),
+        )
+        recipient_state = conversation.participants.get(user=self.employee)
+        self.assertEqual(recipient_state.unread_count, 1)
+
+        self.client.force_login(self.employee)
+        dashboard_response = self.client.get(reverse("dashboard"))
+        self.assertContains(dashboard_response, 'class="sidebar-count">1</small>')
+        recipient_response = self.client.get(
+            reverse("communications:team-conversation", args=[conversation.public_id])
+        )
+        self.assertEqual(recipient_response.status_code, 200)
+        self.assertContains(recipient_response, "Ishlab chiqarish rejasini yuboring.")
+        recipient_state.refresh_from_db()
+        self.assertEqual(recipient_state.unread_count, 0)
+
+        self.client.force_login(self.third_user)
+        hidden_response = self.client.get(
+            reverse("communications:team-conversation", args=[conversation.public_id])
+        )
+        forbidden_send = self.client.post(
+            reverse("communications:send", args=[conversation.public_id]),
+            {"body": "Begona xabar"},
+        )
+        self.assertEqual(hidden_response.status_code, 404)
+        self.assertEqual(forbidden_send.status_code, 403)
+        self.assertFalse(Message.objects.filter(body="Begona xabar").exists())
+
+    def test_employee_without_mailbox_permission_can_open_team_inbox(self):
+        self.start_chat()
+        self.client.force_login(self.employee)
+
+        response = self.client.get(reverse("communications:team-inbox"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/messages/team/", response.url)
+
+    def test_team_directory_is_available_to_every_role_and_filters_by_role(self):
+        self.client.force_login(self.employee)
+
+        response = self.client.get(
+            reverse("communications:team-inbox"),
+            {"q": "Kuzatuvchi"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Third")
+        self.assertContains(response, "Kuzatuvchi")
+        self.assertNotContains(response, ">Jamoa chatlari</a>")
+        self.assertContains(response, ">Xabarlar</span>")
 
 
 class TelegramUpdateTests(TestCase):
@@ -687,17 +883,62 @@ class EmailIntegrationTests(TestCase):
             Message.objects.filter(metadata__email_bcc=["audit@example.com"]).exists()
         )
 
-    def test_email_compose_form_renders_contact_picker_and_send_modes(self):
+    def test_email_compose_form_renders_floating_editor_and_contact_picker(self):
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("communications:email-compose"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "buyer@example.com")
-        self.assertContains(response, "Har bir qabul qiluvchiga alohida")
-        self.assertContains(response, "Barchaga bitta guruh emaili")
-        self.assertContains(response, 'class="panel form-panel email-compose-panel"')
-        self.assertContains(response, "Email tayyorlash")
+        self.assertContains(response, "data-email-compose-window")
+        self.assertContains(response, "data-email-editor")
+        self.assertContains(response, "data-editor-command")
+        self.assertContains(response, 'name="attachments" multiple')
+
+    def test_email_compose_ajax_get_returns_only_compose_window(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("communications:email-compose"),
+            {"to": "buyer@example.com", "subject": "Sinov"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "communications/_email_compose_window.html")
+        self.assertContains(response, 'value="buyer@example.com"')
+        self.assertContains(response, 'value="Sinov"')
+        self.assertNotContains(response, "app-shell")
+
+    @patch("apps.communications.views.deliver_email_message", return_value=True)
+    def test_email_compose_ajax_sanitizes_rich_text_and_returns_json(self, deliver):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("communications:email-compose"),
+            {
+                "mailbox": self.mailbox.pk,
+                "to": "buyer@example.com",
+                "cc": "",
+                "bcc": "",
+                "send_mode": "individual",
+                "subject": "Formatlangan xat",
+                "body": "Salom dunyo",
+                "body_html": (
+                    '<p><strong>Salom</strong><script>alert(1)</script>'
+                    '<a href="javascript:alert(2)">havola</a></p>'
+                ),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        message = Message.objects.get()
+        self.assertIn("<strong>Salom</strong>", message.metadata["body_html"])
+        self.assertNotIn("<script", message.metadata["body_html"])
+        self.assertNotIn("javascript:", message.metadata["body_html"])
+        deliver.assert_called_once_with(message)
 
     @patch("apps.communications.views.deliver_email_message", return_value=True)
     def test_compose_group_email_creates_one_conversation(self, deliver):
@@ -786,3 +1027,39 @@ class EmailIntegrationTests(TestCase):
         self.assertEqual(outgoing.to, ["buyer@example.com", "second@example.com"])
         self.assertEqual(outgoing.cc, ["manager@example.com"])
         self.assertEqual(outgoing.bcc, ["audit@example.com"])
+
+    @patch("apps.communications.mailbox.get_connection")
+    def test_rich_email_adds_sanitized_html_alternative(self, connection):
+        conversation = Conversation.objects.create(
+            organization=self.organization,
+            channel=Conversation.Channel.EMAIL,
+            title="HTML xat",
+            external_chat_id="buyer@example.com",
+            mailbox=self.mailbox,
+        )
+        message = Message.objects.create(
+            organization=self.organization,
+            conversation=conversation,
+            direction=Message.Direction.OUTBOUND,
+            sender=self.user,
+            body="Qalin salom",
+            email_subject="HTML xat",
+            email_to=["buyer@example.com"],
+            metadata={"body_html": "<p><strong>Qalin salom</strong></p>"},
+        )
+        sent_messages = []
+
+        class Connection:
+            @staticmethod
+            def send_messages(messages):
+                sent_messages.extend(messages)
+                return 1
+
+        connection.return_value = Connection()
+
+        self.assertTrue(deliver_email_message(message))
+        self.assertEqual(len(sent_messages[0].alternatives), 1)
+        self.assertEqual(
+            sent_messages[0].alternatives[0].content,
+            "<p><strong>Qalin salom</strong></p>",
+        )

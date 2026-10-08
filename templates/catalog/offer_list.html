@@ -11,7 +11,7 @@
 </nav>
 <section class="page-actions">
     <p class="muted">Price-list va product-list hujjatlari, muddatlari va tarixiy narxlari.</p>
-    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:offer-create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi hujjat</span></a>{% endif %}
+    {% if request.crm_permissions.create_catalog %}<a class="button" href="{% url 'catalog:offer-create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi hujjat</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">
@@ -30,7 +30,7 @@
                     <td>{{ offer.valid_until|date:"d.m.Y"|default:"Cheklanmagan" }}</td>
                     <td>{{ offer.lines.count }}</td>
                     <td>
-                        <span class="badge">{{ offer.get_status_display }}</span>
+                        <span class="badge badge-status-{{ offer.status }}">{{ offer.get_status_display }}</span>
                         {% if offer.is_expired %}<span class="badge badge-danger">Muddati tugagan</span>{% endif %}
                     </td>
                 </tr>

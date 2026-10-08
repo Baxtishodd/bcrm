@@ -1,7 +1,8 @@
 (() => {
     const shell = document.querySelector(".app-shell");
     const toggle = document.querySelector(".sidebar-toggle");
-    if (!shell || !toggle) return;
+    const sidebar = document.querySelector(".sidebar");
+    if (!shell || !toggle || !sidebar) return;
 
     const storageKey = "bcrm-sidebar-collapsed";
 
@@ -30,4 +31,13 @@
             // Brauzer storage'ga ruxsat bermasa holatni saqlamaslik yetarli.
         }
     });
+
+    let scrollTimer;
+    sidebar.addEventListener("scroll", () => {
+        sidebar.classList.add("is-scrolling");
+        window.clearTimeout(scrollTimer);
+        scrollTimer = window.setTimeout(() => {
+            sidebar.classList.remove("is-scrolling");
+        }, 700);
+    }, {passive: true});
 })();

@@ -4,7 +4,95 @@ from django.core.exceptions import ValidationError
 
 from apps.accounts.models import User
 
-from .models import Branch, Membership, Organization
+from .models import (
+    Branch,
+    Membership,
+    Organization,
+    OrganizationRole,
+    RolePermission,
+)
+
+
+def employee_role_choices(organization, *, include_owner=False):
+    builtin = [
+        choice
+        for choice in Membership.Role.choices
+        if include_owner or choice[0] != Membership.Role.OWNER
+    ]
+    custom = [
+        (f"custom:{role.public_id}", role.name)
+        for role in organization.custom_roles.order_by("name")
+    ]
+    choices = [("Standart rollar", builtin)]
+    if custom:
+        choices.append(("Maxsus rollar", custom))
+    return choices
+
+
+class OrganizationRoleForm(forms.ModelForm):
+    class Meta:
+        model = OrganizationRole
+        fields = ("name", "description")
+        labels = {
+            "name": "Rol nomi",
+            "description": "Tavsifi",
+        }
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, organization, **kwargs):
+        self.organization = organization
+        super().__init__(*args, **kwargs)
+        selected = set()
+        if self.instance.pk:
+            selected = set(
+                self.instance.permission_entries.values_list("module", "action")
+            )
+        for module, _module_label in RolePermission.Module.choices:
+            for action, action_label in RolePermission.Action.choices:
+                key = self.permission_field_name(module, action)
+                self.fields[key] = forms.BooleanField(
+                    required=False,
+                    label=action_label,
+                    initial=(module, action) in selected,
+                )
+
+    @staticmethod
+    def permission_field_name(module, action):
+        return f"permission_{module}_{action}"
+
+    def clean_name(self):
+        name = self.cleaned_data["name"].strip()
+        duplicate = self.organization.custom_roles.filter(name__iexact=name)
+        if self.instance.pk:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if duplicate.exists():
+            raise forms.ValidationError("Bu nomdagi rol avval yaratilgan.")
+        return name
+
+    def save(self, commit=True):
+        role = super().save(commit=False)
+        role.organization = self.organization
+        if not commit:
+            return role
+        role.save()
+        selected = []
+        for module in RolePermission.Module.values:
+            module_actions = {
+                action
+                for action in RolePermission.Action.values
+                if self.cleaned_data.get(self.permission_field_name(module, action))
+            }
+            if module_actions:
+                module_actions.add(RolePermission.Action.VIEW)
+            for action in module_actions:
+                selected.append(
+                    RolePermission(role=role, module=module, action=action)
+                )
+        role.permission_entries.all().delete()
+        RolePermission.objects.bulk_create(selected)
+        return role
 
 
 class OrganizationSettingsForm(forms.ModelForm):
@@ -141,6 +229,14 @@ class EmployeeCreateForm(forms.Form):
         required=False,
         empty_label="Filial biriktirilmagan",
     )
+    can_manage_all_records = forms.BooleanField(
+        label="Barcha xodimlarning yozuvlarini boshqarish",
+        required=False,
+        help_text=(
+            "Yoqilsa, xodim boshqa xodimlarga tegishli mijoz, kontakt, lead, "
+            "vazifa, savdo va tushumlarni ham o'zgartira oladi."
+        ),
+    )
     password1 = forms.CharField(
         label="Vaqtinchalik parol",
         required=False,
@@ -158,10 +254,17 @@ class EmployeeCreateForm(forms.Form):
     def __init__(self, *args, organization, **kwargs):
         super().__init__(*args, **kwargs)
         self.organization = organization
-        self.fields["role"].choices = [
-            choice for choice in Membership.Role.choices if choice[0] != Membership.Role.OWNER
-        ]
+        self.fields["role"].choices = employee_role_choices(organization)
         self.fields["branch"].queryset = organization.branches.filter(is_active=True)
+
+    def clean_role(self):
+        value = self.cleaned_data["role"]
+        if not value.startswith("custom:"):
+            return value
+        public_id = value.removeprefix("custom:")
+        if not self.organization.custom_roles.filter(public_id=public_id).exists():
+            raise forms.ValidationError("Tanlangan rol mavjud emas.")
+        return value
 
     def clean_email(self):
         email = User.objects.normalize_email(self.cleaned_data["email"]).lower()
@@ -209,11 +312,21 @@ class EmployeeCreateForm(forms.Form):
         elif self.cleaned_data["avatar"]:
             user.avatar = self.cleaned_data["avatar"]
             user.save(update_fields=["avatar"])
+        selected_role = self.cleaned_data["role"]
+        custom_role = None
+        builtin_role = selected_role
+        if selected_role.startswith("custom:"):
+            custom_role = self.organization.custom_roles.get(
+                public_id=selected_role.removeprefix("custom:")
+            )
+            builtin_role = Membership.Role.VIEWER
         return Membership.objects.create(
             organization=self.organization,
             user=user,
-            role=self.cleaned_data["role"],
+            role=builtin_role,
+            custom_role=custom_role,
             branch=self.cleaned_data["branch"],
+            can_manage_all_records=self.cleaned_data["can_manage_all_records"],
         )
 
 
@@ -240,6 +353,14 @@ class EmployeeUpdateForm(forms.Form):
         required=False,
         empty_label="Filial biriktirilmagan",
     )
+    can_manage_all_records = forms.BooleanField(
+        label="Barcha xodimlarning yozuvlarini boshqarish",
+        required=False,
+        help_text=(
+            "Yoqilsa, xodim boshqa xodimlarga tegishli mijoz, kontakt, lead, "
+            "vazifa, savdo va tushumlarni ham o'zgartira oladi."
+        ),
+    )
     is_active = forms.BooleanField(label="Faol xodim", required=False)
 
     def __init__(self, *args, membership, actor_membership, **kwargs):
@@ -252,8 +373,13 @@ class EmployeeUpdateForm(forms.Form):
                 "last_name": membership.user.last_name,
                 "email": membership.user.email,
                 "phone": membership.user.phone,
-                "role": membership.role,
+                "role": (
+                    f"custom:{membership.custom_role.public_id}"
+                    if membership.custom_role_id
+                    else membership.role
+                ),
                 "branch": membership.branch,
+                "can_manage_all_records": membership.can_manage_all_records,
                 "is_active": membership.is_active,
             }
         )
@@ -264,11 +390,9 @@ class EmployeeUpdateForm(forms.Form):
             ]
             self.fields["role"].disabled = True
         else:
-            self.fields["role"].choices = [
-                choice
-                for choice in Membership.Role.choices
-                if choice[0] != Membership.Role.OWNER
-            ]
+            self.fields["role"].choices = employee_role_choices(
+                membership.organization
+            )
         self.fields["branch"].queryset = membership.organization.branches.filter(
             is_active=True
         )
@@ -281,6 +405,19 @@ class EmployeeUpdateForm(forms.Form):
             raise forms.ValidationError("Tashkilot egasini bloklab bo'lmaydi.")
         return is_active
 
+    def clean_role(self):
+        value = self.cleaned_data["role"]
+        if self.membership.role == Membership.Role.OWNER:
+            return Membership.Role.OWNER
+        if not value.startswith("custom:"):
+            return value
+        public_id = value.removeprefix("custom:")
+        if not self.membership.organization.custom_roles.filter(
+            public_id=public_id
+        ).exists():
+            raise forms.ValidationError("Tanlangan rol mavjud emas.")
+        return value
+
     def save(self):
         user = self.membership.user
         user.first_name = self.cleaned_data["first_name"]
@@ -291,8 +428,28 @@ class EmployeeUpdateForm(forms.Form):
             user.avatar = self.cleaned_data["avatar"]
             update_fields.append("avatar")
         user.save(update_fields=update_fields)
-        self.membership.role = self.cleaned_data["role"]
+        selected_role = self.cleaned_data["role"]
+        if selected_role.startswith("custom:"):
+            self.membership.custom_role = self.membership.organization.custom_roles.get(
+                public_id=selected_role.removeprefix("custom:")
+            )
+            self.membership.role = Membership.Role.VIEWER
+        else:
+            self.membership.custom_role = None
+            self.membership.role = selected_role
         self.membership.branch = self.cleaned_data["branch"]
+        self.membership.can_manage_all_records = self.cleaned_data[
+            "can_manage_all_records"
+        ]
         self.membership.is_active = self.cleaned_data["is_active"]
-        self.membership.save(update_fields=["role", "branch", "is_active", "updated_at"])
+        self.membership.save(
+            update_fields=[
+                "role",
+                "custom_role",
+                "branch",
+                "can_manage_all_records",
+                "is_active",
+                "updated_at",
+            ]
+        )
         return self.membership

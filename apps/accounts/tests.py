@@ -244,3 +244,54 @@ class AccountSecurityTests(TestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.must_change_password)
         self.assertTrue(self.user.check_password("Reset-secure-password-2026"))
+
+
+class ProfileMenuTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="profile@example.com",
+            password="test-password",
+            first_name="Baxtishod",
+            last_name="Davronov",
+        )
+        self.organization = Organization.objects.create(
+            name="Profile Textile",
+            slug="profile-textile",
+        )
+        Membership.objects.create(
+            organization=self.organization,
+            user=self.user,
+            role=Membership.Role.OWNER,
+        )
+        self.client.force_login(self.user)
+
+    def test_sidebar_contains_accessible_profile_menu(self):
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, "data-user-menu")
+        self.assertContains(response, 'class="user-menu sidebar-user-menu"')
+        self.assertContains(response, "Baxtishod Davronov")
+        self.assertContains(response, "Egasi")
+        self.assertContains(response, reverse("accounts:profile"))
+        self.assertContains(response, 'aria-haspopup="menu"')
+        html = response.content.decode()
+        self.assertLess(html.index("data-user-menu"), html.index("</aside>"))
+        self.assertLess(html.index("</aside>"), html.index('<main class="content">'))
+
+    def test_user_can_update_own_profile_without_changing_email(self):
+        response = self.client.post(
+            reverse("accounts:profile"),
+            {
+                "first_name": "Baxtishodbek",
+                "last_name": "Davronov",
+                "email": "changed@example.com",
+                "phone": "+998901234567",
+                "preferred_language": User.Language.UZ,
+            },
+        )
+
+        self.assertRedirects(response, reverse("accounts:profile"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Baxtishodbek")
+        self.assertEqual(self.user.phone, "+998901234567")
+        self.assertEqual(self.user.email, "profile@example.com")

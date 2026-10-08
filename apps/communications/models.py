@@ -75,6 +75,11 @@ class Conversation(OrganizationScopedModel):
         related_name="conversations",
     )
     email_thread_key = models.CharField(max_length=255, blank=True)
+    internal_direct_key = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+    )
     telegram_avatar = OptimizedImageField(blank=True)
     telegram_avatar_file_id = models.CharField(max_length=255, blank=True)
     telegram_avatar_checked_at = models.DateTimeField(null=True, blank=True)
@@ -115,6 +120,12 @@ class Conversation(OrganizationScopedModel):
             models.Index(fields=["organization", "channel"]),
             models.Index(fields=["organization", "last_message_at"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "channel", "internal_direct_key"],
+                name="uniq_internal_direct_conversation",
+            )
+        ]
 
     def __str__(self):
         return self.display_title
@@ -151,6 +162,47 @@ class Conversation(OrganizationScopedModel):
             errors["assigned_to"] = "Mas'ul xodim ushbu tashkilotga tegishli emas."
         if self.mailbox_id and self.mailbox.organization_id != self.organization_id:
             errors["mailbox"] = "Mailbox boshqa tashkilotga tegishli."
+        if errors:
+            raise ValidationError(errors)
+
+
+class ConversationParticipant(OrganizationScopedModel):
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="participants",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="conversation_participations",
+    )
+    unread_count = models.PositiveIntegerField(default=0)
+    last_read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["conversation", "user"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["conversation", "user"],
+                name="uniq_conversation_participant",
+            )
+        ]
+        indexes = [models.Index(fields=["organization", "user"])]
+
+    def __str__(self):
+        return f"{self.conversation} — {self.user}"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.conversation_id and self.conversation.organization_id != self.organization_id:
+            errors["conversation"] = "Suhbat boshqa tashkilotga tegishli."
+        if self.user_id and not self.user.memberships.filter(
+            organization_id=self.organization_id,
+            is_active=True,
+        ).exists():
+            errors["user"] = "Xodim ushbu tashkilotning faol a'zosi emas."
         if errors:
             raise ValidationError(errors)
 
@@ -255,7 +307,11 @@ class Message(OrganizationScopedModel):
         is_new = self._state.adding
         super().save(*args, **kwargs)
         update_fields = {"last_message_at": self.sent_at, "updated_at": timezone.now()}
-        if is_new and self.direction == self.Direction.INBOUND:
+        if (
+            is_new
+            and self.direction == self.Direction.INBOUND
+            and self.conversation.channel != Conversation.Channel.INTERNAL
+        ):
             Conversation.objects.filter(pk=self.conversation_id).update(
                 last_message_at=self.sent_at,
                 unread_count=models.F("unread_count") + 1,
@@ -263,6 +319,17 @@ class Message(OrganizationScopedModel):
             )
         else:
             Conversation.objects.filter(pk=self.conversation_id).update(**update_fields)
+        if (
+            is_new
+            and self.conversation.channel == Conversation.Channel.INTERNAL
+            and self.sender_id
+        ):
+            ConversationParticipant.objects.filter(
+                conversation_id=self.conversation_id,
+            ).exclude(user_id=self.sender_id).update(
+                unread_count=models.F("unread_count") + 1,
+                updated_at=timezone.now(),
+            )
 
 
 class MessageAttachment(OrganizationScopedModel):

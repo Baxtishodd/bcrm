@@ -11,7 +11,13 @@ from django.utils import timezone
 
 from apps.accounts.models import MailboxAccount
 from apps.common.models import AuditLog
-from apps.common.permissions import OrganizationPermission, organization_permission_required
+from apps.common.permissions import (
+    OrganizationPermission,
+    can_edit_record,
+    can_manage_all_records,
+    ensure_record_editable,
+    organization_permission_required,
+)
 from apps.common.tenancy import organization_required
 from apps.crm.models import Lead
 
@@ -41,6 +47,7 @@ from .services import (
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_SALES)
 def quotation_list(request):
     query = request.GET.get("q", "").strip()
     quotations = Quotation.objects.filter(
@@ -63,7 +70,7 @@ def quotation_list(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.CREATE_SALES)
 def quotation_create(request, lead_public_id=None):
     source_lead = None
     initial = {}
@@ -74,6 +81,7 @@ def quotation_create(request, lead_public_id=None):
             public_id=lead_public_id,
             organization=request.organization,
         )
+        ensure_record_editable(request, source_lead)
         cancel_url = f"/leads/{source_lead.public_id}/"
         if source_lead.customer_id is None:
             messages.error(
@@ -112,6 +120,10 @@ def quotation_create(request, lead_public_id=None):
         quotation = form.save(commit=False)
         quotation.organization = request.organization
         quotation.created_by = request.user
+        if not can_manage_all_records(request.user, request.membership):
+            quotation.assigned_to = request.user
+        elif quotation.assigned_to_id is None:
+            quotation.assigned_to = request.user
         if not quotation.number:
             quotation.number = next_document_number(
                 Quotation,
@@ -138,6 +150,7 @@ def quotation_create(request, lead_public_id=None):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_SALES)
 def quotation_detail(request, public_id):
     quotation = get_object_or_404(
         Quotation.objects.select_related(
@@ -158,19 +171,26 @@ def quotation_detail(request, public_id):
     return render(
         request,
         "sales/detail.html",
-        {"quotation": quotation, "organization": request.organization},
+        {
+            "quotation": quotation,
+            "organization": request.organization,
+            "record_editable": can_edit_record(
+                request.user, request.membership, quotation
+            ),
+        },
     )
 
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.CREATE_SALES)
 def quotation_delivery_create(request, public_id):
     quotation = get_object_or_404(
         Quotation,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, quotation)
     form = QuotationDeliveryForm(request.POST or None)
     if form.is_valid():
         delivery = form.save(commit=False)
@@ -200,7 +220,7 @@ def quotation_delivery_create(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.UPDATE_SALES)
 def quotation_email_send(request, public_id):
     quotation = get_object_or_404(
         Quotation.objects.select_related(
@@ -217,6 +237,7 @@ def quotation_email_send(request, public_id):
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, quotation)
     recipient = ""
     if quotation.contact and quotation.contact.email:
         recipient = quotation.contact.email
@@ -289,13 +310,14 @@ def quotation_email_send(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.UPDATE_SALES)
 def quotation_update(request, public_id):
     quotation = get_object_or_404(
         Quotation,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, quotation)
     form = QuotationForm(
         request.POST or None,
         instance=quotation,
@@ -319,13 +341,14 @@ def quotation_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.CREATE_SALES)
 def quotation_line_create(request, public_id):
     quotation = get_object_or_404(
         Quotation,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, quotation)
     form = QuotationLineForm(
         request.POST or None,
         organization=request.organization,
@@ -352,6 +375,7 @@ def quotation_line_create(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_SALES)
 def quotation_print(request, public_id):
     quotation = get_object_or_404(
         Quotation.objects.select_related(
@@ -363,13 +387,19 @@ def quotation_print(request, public_id):
     return render(
         request,
         "sales/quotation_print.html",
-        {"quotation": quotation, "organization": request.organization},
+        {
+            "quotation": quotation,
+            "organization": request.organization,
+            "record_editable": can_edit_record(
+                request.user, request.membership, quotation
+            ),
+        },
     )
 
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.UPDATE_SALES)
 def quotation_document_edit(request, public_id):
     quotation = get_object_or_404(
         Quotation.objects.select_related(
@@ -384,6 +414,7 @@ def quotation_document_edit(request, public_id):
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, quotation)
     form = QuotationDocumentForm(request.POST or None, instance=quotation)
     line_formset = QuotationDocumentLineFormSet(
         request.POST or None,
@@ -421,6 +452,7 @@ def quotation_document_edit(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_SALES)
 def quotation_pdf(request, public_id):
     quotation = get_object_or_404(
         Quotation.objects.select_related(
@@ -451,7 +483,7 @@ def quotation_pdf(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.UPDATE_SALES)
 def quotation_convert(request, public_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -460,6 +492,9 @@ def quotation_convert(request, public_id):
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, quotation)
+    if quotation.lead_id:
+        ensure_record_editable(request, quotation.lead)
     if not quotation.lines.exists():
         messages.error(request, "Buyurtma yaratish uchun taklifga mahsulot qo'shing.")
         return redirect("sales:detail", public_id=quotation.public_id)
@@ -473,6 +508,7 @@ def quotation_convert(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_SALES)
 def order_list(request):
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
@@ -500,6 +536,7 @@ def order_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_SALES)
 def order_detail(request, public_id):
     order = get_object_or_404(
         SalesOrder.objects.select_related(
@@ -526,6 +563,9 @@ def order_detail(request, public_id):
         "sales/order_detail.html",
         {
             "order": order,
+            "record_editable": can_edit_record(
+                request.user, request.membership, order
+            ),
             "organization": request.organization,
             "planned_payment_total": sum(
                 (plan.amount for plan in order.payment_plans.all() if not plan.is_cancelled),
@@ -538,13 +578,14 @@ def order_detail(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.UPDATE_SALES)
 def order_update(request, public_id):
     order = get_object_or_404(
         SalesOrder,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, order)
     form = SalesOrderForm(
         request.POST or None,
         instance=order,
@@ -574,13 +615,14 @@ def order_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.CREATE_SALES)
 def payment_plan_create(request, public_id):
     order = get_object_or_404(
         SalesOrder,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, order)
     form = PaymentPlanForm(request.POST or None)
     if form.is_valid():
         plan = form.save(commit=False)
@@ -611,13 +653,14 @@ def payment_plan_create(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.CREATE_SALES)
 def payment_create(request, public_id):
     order = get_object_or_404(
         SalesOrder.objects.prefetch_related("payment_plans"),
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, order)
     form = PaymentForm(request.POST or None, order=order)
     if form.is_valid():
         with transaction.atomic():
@@ -654,13 +697,14 @@ def payment_create(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.UPDATE_SALES)
 def payment_plan_update(request, public_id):
     plan = get_object_or_404(
         PaymentPlan.objects.select_related("order"),
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, plan)
     if plan.is_cancelled:
         messages.error(request, "Bekor qilingan to'lov rejasini tahrirlab bo'lmaydi.")
         return redirect("sales:order-detail", public_id=plan.order.public_id)
@@ -699,7 +743,7 @@ def payment_plan_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.UPDATE_SALES)
 def payment_update(request, public_id):
     payment = get_object_or_404(
         Payment.objects.select_related("order").prefetch_related(
@@ -708,6 +752,7 @@ def payment_update(request, public_id):
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, payment)
     if payment.is_cancelled:
         messages.error(request, "Bekor qilingan tushumni tahrirlab bo'lmaydi.")
         return redirect("sales:order-detail", public_id=payment.order.public_id)
@@ -778,13 +823,14 @@ def _cancel_finance_record(request, instance, success_message):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.DELETE_SALES)
 def payment_plan_cancel(request, public_id):
     plan = get_object_or_404(
         PaymentPlan.objects.select_related("order"),
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, plan)
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     if not plan.is_cancelled:
@@ -803,13 +849,14 @@ def payment_plan_cancel(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_SALES)
+@organization_permission_required(OrganizationPermission.DELETE_SALES)
 def payment_cancel(request, public_id):
     payment = get_object_or_404(
         Payment.objects.select_related("order"),
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, payment)
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     if not payment.is_cancelled:

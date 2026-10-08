@@ -33,6 +33,7 @@ from .pdf import build_price_list_pdf, price_list_pdf_filename
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CATALOG)
 def product_list(request):
     query = request.GET.get("q", "").strip()
     category = request.GET.get("category", "")
@@ -60,6 +61,7 @@ def product_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CATALOG)
 def price_list(request):
     query = request.GET.get("q", "").strip()
     availability = request.GET.get("availability", "")
@@ -97,7 +99,7 @@ def price_list(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.CREATE_CATALOG)
 def product_create(request):
     form = ProductForm(
         request.POST or None,
@@ -124,6 +126,7 @@ def product_create(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CATALOG)
 def product_detail(request, public_id):
     product = get_object_or_404(
         Product.objects.select_related(
@@ -146,7 +149,7 @@ def product_detail(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.UPDATE_CATALOG)
 def product_specification_update(request, public_id):
     product = get_object_or_404(
         Product,
@@ -197,6 +200,7 @@ def product_specification_update(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CATALOG)
 def offer_list(request):
     offers = PriceList.objects.filter(
         organization=request.organization,
@@ -210,7 +214,7 @@ def offer_list(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.CREATE_CATALOG)
 def offer_create(request):
     form = PriceListForm(request.POST or None)
     if form.is_valid():
@@ -234,6 +238,7 @@ def offer_create(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CATALOG)
 def offer_detail(request, public_id):
     offer = get_object_or_404(
         PriceList.objects.prefetch_related("lines__product"),
@@ -249,7 +254,7 @@ def offer_detail(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.UPDATE_CATALOG)
 def offer_update(request, public_id):
     offer = get_object_or_404(
         PriceList,
@@ -275,7 +280,7 @@ def offer_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.CREATE_CATALOG)
 @require_POST
 def offer_create_version(request, public_id):
     source = get_object_or_404(
@@ -343,7 +348,7 @@ def offer_create_version(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.UPDATE_CATALOG)
 def offer_document_edit(request, public_id):
     offer = get_object_or_404(
         PriceList.objects.select_related("organization").prefetch_related(
@@ -396,6 +401,7 @@ def offer_document_edit(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CATALOG)
 def offer_pdf(request, public_id):
     offer = get_object_or_404(
         PriceList.objects.select_related("organization").prefetch_related(
@@ -417,7 +423,7 @@ def offer_pdf(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.CREATE_CATALOG)
 def offer_line_create(request, public_id):
     offer = get_object_or_404(
         PriceList,
@@ -457,7 +463,7 @@ def offer_line_create(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.UPDATE_CATALOG)
 def product_update(request, public_id):
     product = get_object_or_404(
         Product,
@@ -488,7 +494,7 @@ def product_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CATALOG)
+@organization_permission_required(OrganizationPermission.CREATE_CATALOG)
 def variant_create(request, public_id):
     product = get_object_or_404(
         Product,

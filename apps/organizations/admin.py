@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import Branch, Membership, Organization
+from .models import (
+    Branch,
+    Membership,
+    Organization,
+    OrganizationRole,
+    RolePermission,
+)
 
 
 @admin.register(Organization)
@@ -76,3 +82,5 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 admin.site.register(Branch)
 admin.site.register(Membership)
+admin.site.register(OrganizationRole)
+admin.site.register(RolePermission)

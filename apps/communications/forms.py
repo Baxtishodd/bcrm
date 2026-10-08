@@ -10,12 +10,16 @@ from apps.common.widgets import DependentContactSelect, SearchableSelect
 from apps.crm.models import Lead
 from apps.customers.models import Contact, CustomerCompany
 
+from .html import sanitize_email_html
 from .models import (
     ALLOWED_ATTACHMENT_EXTENSIONS,
     MAX_ATTACHMENT_BYTES,
     Conversation,
     validate_attachment_size,
 )
+
+MAX_EMAIL_ATTACHMENTS = 10
+MAX_EMAIL_ATTACHMENTS_BYTES = 25 * 1024 * 1024
 
 
 class ConversationForm(forms.ModelForm):
@@ -158,11 +162,11 @@ class EmailComposeForm(forms.Form):
     )
     to = forms.CharField(
         label="Kimga",
-        widget=forms.Textarea(
+        widget=forms.TextInput(
             attrs={
-                "rows": 2,
                 "placeholder": "client@example.com, partner@example.com",
                 "data-email-recipients": "",
+                "list": "email-contact-options",
             }
         ),
         help_text="Email manzillarini vergul, nuqtali vergul yoki yangi qatordan ajrating.",
@@ -170,12 +174,12 @@ class EmailComposeForm(forms.Form):
     cc = forms.CharField(
         required=False,
         label="CC",
-        widget=forms.Textarea(attrs={"rows": 1, "placeholder": "Nusxa oluvchilar"}),
+        widget=forms.TextInput(attrs={"placeholder": "Nusxa oluvchilar"}),
     )
     bcc = forms.CharField(
         required=False,
         label="BCC",
-        widget=forms.Textarea(attrs={"rows": 1, "placeholder": "Yashirin nusxa"}),
+        widget=forms.TextInput(attrs={"placeholder": "Yashirin nusxa"}),
     )
     send_mode = forms.ChoiceField(
         label="Yuborish turi",
@@ -197,7 +201,16 @@ class EmailComposeForm(forms.Form):
     )
     body = forms.CharField(
         label="Xabar",
-        widget=forms.Textarea(attrs={"rows": 10, "placeholder": "Xabar matnini yozing..."}),
+        required=False,
+        widget=forms.HiddenInput(attrs={"data-email-body": ""}),
+    )
+    body_html = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={"data-email-body-html": ""}),
+    )
+    quotation = forms.UUIDField(
+        required=False,
+        widget=forms.HiddenInput(),
     )
     attachments = MultipleFileField(
         required=False,
@@ -240,9 +253,26 @@ class EmailComposeForm(forms.Form):
 
     def clean_attachments(self):
         attachments = self.cleaned_data.get("attachments", [])
+        if len(attachments) > MAX_EMAIL_ATTACHMENTS:
+            raise forms.ValidationError(
+                f"Ko'pi bilan {MAX_EMAIL_ATTACHMENTS} ta fayl biriktirish mumkin."
+            )
+        if sum(attachment.size for attachment in attachments) > MAX_EMAIL_ATTACHMENTS_BYTES:
+            raise forms.ValidationError("Fayllarning umumiy hajmi 25 MB dan oshmasligi kerak.")
         for attachment in attachments:
             validate_attachment_size(attachment)
             extension = Path(attachment.name).suffix.lower().lstrip(".")
             if extension not in ALLOWED_ATTACHMENT_EXTENSIONS:
                 raise forms.ValidationError(f"{attachment.name}: bu turdagi fayl mumkin emas.")
         return attachments
+
+    def clean_body_html(self):
+        return sanitize_email_html(self.cleaned_data.get("body_html", ""))
+
+    def clean(self):
+        cleaned_data = super().clean()
+        body = cleaned_data.get("body", "").strip()
+        body_html = cleaned_data.get("body_html", "").strip()
+        if not body and not body_html:
+            self.add_error("body", "Email matnini kiriting.")
+        return cleaned_data

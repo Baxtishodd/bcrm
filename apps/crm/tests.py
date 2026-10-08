@@ -129,6 +129,7 @@ class TaskFrontendTests(TestCase):
             title="New order",
             customer=self.customer,
             stage=self.open_stage,
+            assigned_to=self.user,
         )
         self.task = Activity.objects.create(
             organization=self.organization,
@@ -136,6 +137,7 @@ class TaskFrontendTests(TestCase):
             activity_type=Activity.Type.TASK,
             subject="Call customer",
             due_at=timezone.now(),
+            assigned_to=self.user,
         )
         self.client.force_login(self.user)
 
@@ -453,6 +455,7 @@ class TaskFrontendTests(TestCase):
             organization=self.organization,
             title="Customer missing",
             stage=self.open_stage,
+            assigned_to=self.user,
         )
 
         response = self.client.post(

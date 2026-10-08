@@ -12,7 +12,7 @@ def get_membership(user):
     if not user.is_authenticated:
         return None
     return (
-        Membership.objects.select_related("organization")
+        Membership.objects.select_related("organization", "custom_role")
         .filter(user=user, is_active=True, organization__is_active=True)
         .first()
     )

@@ -10,8 +10,9 @@
 <section class="page-actions">
     <div></div>
     <div class="button-row">
-        {% if request.crm_permissions.manage_tasks %}<a class="button button-secondary" href="{% url 'tasks:create' %}?contact={{ contact.public_id }}">{% include "shared/icon.html" with name="tasks" %}<span>Vazifa qo'shish</span></a>{% endif %}
-        {% if request.crm_permissions.manage_leads %}<a class="button" href="{% url 'crm:create' %}?contact={{ contact.public_id }}">{% include "shared/icon.html" with name="plus" %}<span>Lead yaratish</span></a>{% endif %}
+        {% if contact.email and request.crm_permissions.create_mailbox %}<a class="button button-secondary" href="{% url 'communications:email-compose' %}?to={{ contact.email|urlencode }}" data-email-compose-trigger>{% include "shared/icon.html" with name="email" %}<span>Email</span></a>{% endif %}
+        {% if request.crm_permissions.create_tasks %}<a class="button button-secondary" href="{% url 'tasks:create' %}?contact={{ contact.public_id }}">{% include "shared/icon.html" with name="tasks" %}<span>Vazifa qo'shish</span></a>{% endif %}
+        {% if request.crm_permissions.create_leads %}<a class="button" href="{% url 'crm:create' %}?contact={{ contact.public_id }}">{% include "shared/icon.html" with name="plus" %}<span>Lead yaratish</span></a>{% endif %}
     </div>
 </section>
 
@@ -22,7 +23,7 @@
                 {% if contact.avatar %}<img class="contact-detail-avatar" src="{{ contact.avatar.url }}" alt="{{ contact.full_name }} avatari">{% else %}<div class="contact-detail-avatar contact-detail-avatar-fallback" aria-hidden="true">{{ contact.full_name|first|upper }}</div>{% endif %}
                 <div><p class="eyebrow">Kontakt</p><h2>Asosiy ma'lumotlar</h2></div>
             </div>
-            {% if request.crm_permissions.manage_customers %}<a class="button button-secondary" href="{% url 'customers:contact-update' contact.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>{% endif %}
+            {% if request.crm_permissions.update_customers and record_editable %}<a class="button button-secondary" href="{% url 'customers:contact-update' contact.public_id %}">{% include "shared/icon.html" with name="edit" %}<span>Tahrirlash</span></a>{% endif %}
         </div>
         <dl class="details">
             <div><dt>Turi</dt><dd>{{ contact.get_contact_type_display }}</dd></div>

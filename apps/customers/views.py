@@ -4,7 +4,13 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.common.pagination import paginate_queryset
-from apps.common.permissions import OrganizationPermission, organization_permission_required
+from apps.common.permissions import (
+    OrganizationPermission,
+    can_edit_record,
+    can_manage_all_records,
+    ensure_record_editable,
+    organization_permission_required,
+)
 from apps.common.tenancy import organization_required
 from apps.communications.models import Message
 from apps.crm.models import Activity
@@ -22,6 +28,7 @@ from .models import Contact, CustomerCompany
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CUSTOMERS)
 def customer_list(request):
     filter_form = CustomerListFilterForm(
         request.GET,
@@ -75,7 +82,7 @@ def customer_list(request):
             "filter_reset_url": "/customers/",
             "filter_create_url": (
                 "/customers/new/"
-                if request.crm_permissions[OrganizationPermission.MANAGE_CUSTOMERS]
+                if request.crm_permissions[OrganizationPermission.CREATE_CUSTOMERS]
                 else ""
             ),
             "filter_create_label": "Yangi mijoz",
@@ -87,7 +94,7 @@ def customer_list(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
+@organization_permission_required(OrganizationPermission.CREATE_CUSTOMERS)
 def customer_create(request):
     form = CustomerCompanyForm(
         request.POST or None,
@@ -96,6 +103,10 @@ def customer_create(request):
     if form.is_valid():
         customer = form.save(commit=False)
         customer.organization = request.organization
+        if not can_manage_all_records(request.user, request.membership):
+            customer.owner = request.user
+        elif customer.owner_id is None:
+            customer.owner = request.user
         customer.save()
         messages.success(request, "Mijoz yaratildi.")
         return redirect("customers:detail", public_id=customer.public_id)
@@ -113,6 +124,7 @@ def customer_create(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CUSTOMERS)
 def customer_detail(request, public_id):
     customer = get_object_or_404(
         CustomerCompany.objects.prefetch_related("contacts__owner"),
@@ -138,6 +150,9 @@ def customer_detail(request, public_id):
         "customers/detail.html",
         {
             "customer": customer,
+            "record_editable": can_edit_record(
+                request.user, request.membership, customer
+            ),
             "timeline": build_communication_timeline(
                 activities=activities.distinct(),
                 deliveries=deliveries,
@@ -150,13 +165,14 @@ def customer_detail(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
+@organization_permission_required(OrganizationPermission.UPDATE_CUSTOMERS)
 def customer_update(request, public_id):
     customer = get_object_or_404(
         CustomerCompany,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, customer)
     form = CustomerCompanyForm(
         request.POST or None,
         instance=customer,
@@ -180,7 +196,7 @@ def customer_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
+@organization_permission_required(OrganizationPermission.VIEW_CUSTOMERS)
 def contact_list(request):
     list_scope = request.GET.get("scope", "all")
     if list_scope not in {"all", "mine"}:
@@ -247,7 +263,7 @@ def contact_list(request):
             ),
             "filter_create_url": (
                 "/customers/contacts/new/"
-                if request.crm_permissions[OrganizationPermission.MANAGE_CUSTOMERS]
+                if request.crm_permissions[OrganizationPermission.CREATE_CUSTOMERS]
                 else ""
             ),
             "filter_create_label": "Yangi kontakt",
@@ -271,6 +287,7 @@ def contact_list(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_CUSTOMERS)
 def contact_detail(request, public_id):
     contact = get_object_or_404(
         Contact.objects.select_related("company", "owner"),
@@ -297,6 +314,9 @@ def contact_detail(request, public_id):
         "customers/contact_detail.html",
         {
             "contact": contact,
+            "record_editable": can_edit_record(
+                request.user, request.membership, contact
+            ),
             "leads": leads,
             "timeline": build_communication_timeline(
                 activities=activities.distinct(),
@@ -310,7 +330,7 @@ def contact_detail(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
+@organization_permission_required(OrganizationPermission.CREATE_CUSTOMERS)
 def contact_create(request, customer_public_id=None):
     customer = None
     if customer_public_id:
@@ -348,13 +368,14 @@ def contact_create(request, customer_public_id=None):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_CUSTOMERS)
+@organization_permission_required(OrganizationPermission.UPDATE_CUSTOMERS)
 def contact_update(request, public_id):
     contact = get_object_or_404(
         Contact,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, contact)
     form = ContactForm(
         request.POST or None,
         request.FILES or None,

@@ -6,7 +6,11 @@
         <span>{{ event.message.get_direction_display }} · {{ event.message.get_status_display }}</span>
         {% if event.message.body %}<small>{{ event.message.body|truncatechars:180 }}</small>{% else %}<small>Biriktirilgan fayl</small>{% endif %}
         <small>{{ event.occurred_at|date:"d.m.Y H:i" }}{% if event.message.sender_name %} · {{ event.message.sender_name }}{% endif %}</small>
+        {% if event.message.conversation.channel == "internal" %}
+        <a class="table-link" href="{% url 'communications:team-conversation' event.message.conversation.public_id %}">Suhbatni ochish</a>
+        {% else %}
         <a class="table-link" href="{% url 'communications:conversation' event.message.conversation.public_id %}">Suhbatni ochish</a>
+        {% endif %}
         {% elif event.kind == "delivery" %}
         <strong>{{ event.delivery.quotation.number }} — {{ event.delivery.get_channel_display }}</strong>
         <span>{{ event.delivery.recipient }} · {{ event.delivery.get_status_display }}</span>

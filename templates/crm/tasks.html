@@ -14,7 +14,7 @@
         </select>
         <button class="button button-secondary" type="submit">{% include "shared/icon.html" with name="search" %}<span>Ko'rsatish</span></button>
     </form>
-    {% if request.crm_permissions.manage_tasks %}<a class="button" href="{% url 'tasks:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi vazifa</span></a>{% endif %}
+    {% if request.crm_permissions.create_tasks %}<a class="button" href="{% url 'tasks:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi vazifa</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">
@@ -34,10 +34,10 @@
                 <td>
                     {% if task.completed_at %}<span class="badge badge-success">Bajarilgan</span>
                     {% elif task.due_at and task.due_at < now %}<span class="badge badge-danger">Kechikkan</span>
-                    {% else %}<span class="badge">Ochiq</span>{% endif %}
+                    {% else %}<span class="badge badge-warning">Ochiq</span>{% endif %}
                 </td>
                 <td>
-                    {% if request.crm_permissions.manage_tasks and not task.completed_at %}
+                    {% if request.crm_permissions.update_tasks and task.record_editable and not task.completed_at %}
                     <form method="post" action="{% url 'tasks:complete' task.public_id %}">
                         {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <button class="button button-small" type="submit">{% include "shared/icon.html" with name="check" %}<span>Bajarildi</span></button>

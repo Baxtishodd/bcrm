@@ -1,5 +1,5 @@
 {% for item in message_items %}
-<article class="chat-message chat-message-{{ item.direction }}" data-message-id="{{ item.id }}">
+<article class="chat-message chat-message-{% if team_mode %}{% if item.sender_id == request.user.id %}outbound{% else %}inbound{% endif %}{% else %}{{ item.direction }}{% endif %}" data-message-id="{{ item.id }}">
     <div class="chat-bubble">
         {% if item.sender_name %}<strong>{{ item.sender_name }}</strong>{% endif %}
         {% if item.email_from and item.email_from != item.sender_name %}

@@ -164,7 +164,7 @@ barcha aloqa tarixi yagona profilda ko'rinadi.
 - [ ] Telegram va WhatsApp uchun xavfsiz integratsiya variantini tanlash.
 - [x] Mijoz bilan barcha aloqalarni yagona timeline'da ko'rsatish.
 - [x] Follow-up vazifalarini avtomatik yaratish.
-- [ ] Ichki chatni mijozlar uchun Xabarlar markazidan ajratib, alohida
+- [x] Ichki chatni mijozlar uchun Xabarlar markazidan ajratib, alohida
   "Jamoa chatlari" bo'limiga ko'chirish va Xabarlar sahifasidagi chalkash
   yangi suhbat tugmasini olib tashlash.
 - [ ] Mutlaq real-time yangilanishlar uchun Django Channels, WebSocket va Redis
@@ -186,6 +186,8 @@ barcha aloqa tarixi yagona profilda ko'rinadi.
 - [x] To'lov rejalari va tushumlarni tahrirlash hamda sabab bilan bekor qilish.
 - [x] Moliyaviy o'zgarishlar tarixini saqlash va kechikkan to'lovlarni ko'rsatish.
 - [x] 7/30 kunlik pul oqimi prognozi va to'lov filtrlarini qo'shish.
+- [x] Dashboardda joriy oy savdosini o'tgan oyning shu davri bilan taqqoslash,
+  KPI va 12 oylik trend grafiklarini valyutalar kesimida ko'rsatish.
 - [ ] Moliyaviy hisobotlarni Excel va PDF formatida eksport qilish.
 - [x] Rollar va amallar bo'yicha batafsil ruxsat tizimini qo'shish.
 

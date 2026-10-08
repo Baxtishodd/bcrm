@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 from django.test import TestCase
 from django.urls import reverse
@@ -10,6 +11,8 @@ from apps.crm.models import Activity, Lead
 from apps.customers.models import Contact, CustomerCompany
 from apps.organizations.models import Membership, Organization
 from apps.sales.models import Payment, PaymentPlan, Quotation, SalesOrder
+
+from .views import build_sales_dashboard_analytics
 
 
 class CrossModulePermissionTests(TestCase):
@@ -305,6 +308,10 @@ class SalesReportTests(TestCase):
         response = self.client.get(reverse("dashboard"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Savdo analitikasi")
+        self.assertContains(response, "js/sales-analytics.js")
+        self.assertContains(response, "badge-status-new")
+        self.assertContains(response, "badge-status-in_progress")
         self.assertContains(response, "7/30 kunlik tushum prognozi")
         self.assertContains(response, "1000,00")
         self.assertContains(response, "2000000,00")
@@ -327,6 +334,120 @@ class SalesReportTests(TestCase):
                 }
             ],
         )
+
+    def test_dashboard_sales_analytics_compares_matching_month_periods(self):
+        today = date(2026, 10, 8)
+
+        def order(order_date, total, balance, status=SalesOrder.Status.CONFIRMED):
+            return SimpleNamespace(
+                order_date=order_date,
+                currency="USD",
+                total=Decimal(total),
+                balance=Decimal(balance),
+                status=status,
+            )
+
+        current_first = order(date(2026, 10, 2), "1200", "400")
+        current_second = order(date(2026, 10, 6), "800", "800")
+        previous_matching = order(date(2026, 9, 3), "1000", "0")
+        previous_after_cutoff = order(date(2026, 9, 20), "900", "900")
+        cancelled = order(
+            date(2026, 10, 4),
+            "500",
+            "500",
+            SalesOrder.Status.CANCELLED,
+        )
+        payments = [
+            SimpleNamespace(
+                order=current_first,
+                received_on=date(2026, 10, 5),
+                amount=Decimal("750"),
+                is_cancelled=False,
+            ),
+            SimpleNamespace(
+                order=current_second,
+                received_on=date(2026, 10, 5),
+                amount=Decimal("100"),
+                is_cancelled=True,
+            ),
+        ]
+
+        rows = build_sales_dashboard_analytics(
+            [
+                current_first,
+                current_second,
+                previous_matching,
+                previous_after_cutoff,
+                cancelled,
+            ],
+            payments,
+            today,
+        )
+
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["current_sales"], Decimal("2000"))
+        self.assertEqual(row["previous_sales"], Decimal("1000"))
+        self.assertEqual(row["change_percent"], Decimal("100.0"))
+        self.assertEqual(row["current_receipts"], Decimal("750"))
+        self.assertEqual(row["outstanding"], Decimal("2100"))
+        self.assertEqual(row["order_count"], 2)
+        self.assertEqual(row["average_order"], Decimal("1000"))
+        self.assertEqual(row["daily_current"][-1], Decimal("2000"))
+        self.assertEqual(row["daily_previous"][-1], Decimal("1000"))
+        self.assertEqual(row["monthly_sales"][-1], Decimal("2000"))
+        self.assertEqual(row["monthly_sales"][-2], Decimal("1900"))
+
+    def test_dashboard_sales_analytics_keeps_currencies_separate(self):
+        usd_order = SimpleNamespace(
+            order_date=date(2026, 10, 2),
+            currency="USD",
+            total=Decimal("100"),
+            balance=Decimal("40"),
+            status=SalesOrder.Status.CONFIRMED,
+        )
+        uzs_order = SimpleNamespace(
+            order_date=date(2026, 10, 3),
+            currency="UZS",
+            total=Decimal("1200000"),
+            balance=Decimal("200000"),
+            status=SalesOrder.Status.CONFIRMED,
+        )
+
+        rows = build_sales_dashboard_analytics(
+            [usd_order, uzs_order],
+            [],
+            date(2026, 10, 8),
+        )
+
+        self.assertEqual([row["currency"] for row in rows], ["USD", "UZS"])
+        self.assertEqual(rows[0]["current_sales"], Decimal("100"))
+        self.assertEqual(rows[1]["current_sales"], Decimal("1200000"))
+
+    def test_dashboard_sales_analytics_puts_preferred_currency_first(self):
+        usd_order = SimpleNamespace(
+            order_date=date(2026, 10, 2),
+            currency="USD",
+            total=Decimal("100"),
+            balance=Decimal("40"),
+            status=SalesOrder.Status.CONFIRMED,
+        )
+        eur_order = SimpleNamespace(
+            order_date=date(2026, 10, 3),
+            currency="EUR",
+            total=Decimal("80"),
+            balance=Decimal("20"),
+            status=SalesOrder.Status.CONFIRMED,
+        )
+
+        rows = build_sales_dashboard_analytics(
+            [eur_order, usd_order],
+            [],
+            date(2026, 10, 8),
+            preferred_currency="USD",
+        )
+
+        self.assertEqual([row["currency"] for row in rows], ["USD", "EUR"])
 
     def test_dashboard_supports_tasks_without_a_lead(self):
         contact = Contact.objects.create(
@@ -385,6 +506,7 @@ class SalesReportTests(TestCase):
                 self.assertContains(response, 'class="sidebar-toggle"')
                 self.assertContains(response, 'aria-controls="sidebar-navigation"')
                 self.assertContains(response, "js/sidebar.js")
+                self.assertContains(response, "js/motion.js")
 
     def test_report_filters_by_manager_and_business_direction(self):
         response = self.client.get(
@@ -463,3 +585,200 @@ class SalesReportTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertNotContains(dashboard_response, reverse("sales-report"))
+
+
+class RecordOwnershipPermissionTests(TestCase):
+    def setUp(self):
+        self.first_employee = User.objects.create_user(
+            email="first-sales@example.com",
+            password="test-password",
+        )
+        self.second_employee = User.objects.create_user(
+            email="second-sales@example.com",
+            password="test-password",
+        )
+        self.organization = Organization.objects.create(
+            name="Ownership Textile",
+            slug="ownership-textile",
+        )
+        Membership.objects.create(
+            organization=self.organization,
+            user=self.first_employee,
+            role=Membership.Role.SALES,
+        )
+        self.second_membership = Membership.objects.create(
+            organization=self.organization,
+            user=self.second_employee,
+            role=Membership.Role.SALES,
+        )
+        self.customer = CustomerCompany.objects.create(
+            organization=self.organization,
+            name="First employee customer",
+            owner=self.first_employee,
+        )
+        self.contact = Contact.objects.create(
+            organization=self.organization,
+            company=self.customer,
+            full_name="First employee contact",
+            owner=self.first_employee,
+        )
+        self.lead = Lead.objects.create(
+            organization=self.organization,
+            customer=self.customer,
+            contact=self.contact,
+            title="First employee lead",
+            assigned_to=self.first_employee,
+        )
+        self.task = Activity.objects.create(
+            organization=self.organization,
+            lead=self.lead,
+            activity_type=Activity.Type.TASK,
+            subject="First employee task",
+            assigned_to=self.first_employee,
+        )
+        self.quotation = Quotation.objects.create(
+            organization=self.organization,
+            number="QT-OWN-1",
+            customer=self.customer,
+            lead=self.lead,
+            assigned_to=self.first_employee,
+            created_by=self.first_employee,
+        )
+        self.order = SalesOrder.objects.create(
+            organization=self.organization,
+            number="SO-OWN-1",
+            customer=self.customer,
+            quotation=self.quotation,
+            order_date=date.today(),
+            assigned_to=self.first_employee,
+            created_by=self.first_employee,
+        )
+        self.plan = PaymentPlan.objects.create(
+            organization=self.organization,
+            order=self.order,
+            due_date=date.today() + timedelta(days=7),
+            amount=Decimal("100"),
+        )
+        self.payment = Payment.objects.create(
+            organization=self.organization,
+            order=self.order,
+            plan=self.plan,
+            amount=Decimal("25"),
+            created_by=self.first_employee,
+        )
+
+    def mutation_form_urls(self):
+        return (
+            reverse("customers:update", args=[self.customer.public_id]),
+            reverse("customers:contact-update", args=[self.contact.public_id]),
+            reverse("crm:update", args=[self.lead.public_id]),
+            reverse("sales:update", args=[self.quotation.public_id]),
+            reverse("sales:order-update", args=[self.order.public_id]),
+            reverse("sales:payment-plan-update", args=[self.plan.public_id]),
+            reverse("sales:payment-update", args=[self.payment.public_id]),
+        )
+
+    def test_employee_cannot_edit_another_employees_records(self):
+        self.client.force_login(self.second_employee)
+
+        for url in self.mutation_form_urls():
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 403)
+
+        self.assertEqual(
+            self.client.get(
+                reverse("sales:create-from-lead", args=[self.lead.public_id])
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("communications:email-compose"),
+                {"quotation": self.quotation.public_id},
+            ).status_code,
+            403,
+        )
+
+    def test_mutation_controls_are_hidden_for_another_employees_records(self):
+        self.client.force_login(self.second_employee)
+
+        customer_response = self.client.get(
+            reverse("customers:detail", args=[self.customer.public_id])
+        )
+        lead_response = self.client.get(
+            reverse("crm:detail", args=[self.lead.public_id])
+        )
+        quotation_response = self.client.get(
+            reverse("sales:detail", args=[self.quotation.public_id])
+        )
+        order_response = self.client.get(
+            reverse("sales:order-detail", args=[self.order.public_id])
+        )
+
+        self.assertNotContains(
+            customer_response,
+            reverse("customers:update", args=[self.customer.public_id]),
+        )
+        self.assertNotContains(
+            lead_response,
+            reverse("crm:update", args=[self.lead.public_id]),
+        )
+        self.assertNotContains(
+            quotation_response,
+            reverse("sales:update", args=[self.quotation.public_id]),
+        )
+        self.assertNotContains(
+            order_response,
+            reverse("sales:order-update", args=[self.order.public_id]),
+        )
+
+    def test_employee_can_edit_own_records(self):
+        self.client.force_login(self.first_employee)
+
+        for url in self.mutation_form_urls():
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_designated_employee_can_edit_all_records(self):
+        self.second_membership.can_manage_all_records = True
+        self.second_membership.save(
+            update_fields=["can_manage_all_records", "updated_at"]
+        )
+        self.client.force_login(self.second_employee)
+
+        for url in self.mutation_form_urls():
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_api_rejects_updates_to_another_employees_records(self):
+        self.client.force_login(self.second_employee)
+        endpoints = (
+            f"/api/v1/customers/companies/{self.customer.pk}/",
+            f"/api/v1/crm/leads/{self.lead.pk}/",
+            f"/api/v1/sales/quotations/{self.quotation.pk}/",
+            f"/api/v1/sales/orders/{self.order.pk}/",
+        )
+
+        for endpoint in endpoints:
+            with self.subTest(endpoint=endpoint):
+                response = self.client.patch(
+                    endpoint,
+                    data="{}",
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 403)
+
+    def test_api_assigns_new_records_to_the_creator_by_default(self):
+        self.client.force_login(self.second_employee)
+
+        response = self.client.post(
+            "/api/v1/customers/companies/",
+            {
+                "name": "Second employee customer",
+                "owner": self.first_employee.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        created = CustomerCompany.objects.get(name="Second employee customer")
+        self.assertEqual(created.owner, self.second_employee)

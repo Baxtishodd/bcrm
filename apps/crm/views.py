@@ -11,7 +11,13 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from apps.common.permissions import OrganizationPermission, organization_permission_required
+from apps.common.permissions import (
+    OrganizationPermission,
+    can_edit_record,
+    can_manage_all_records,
+    ensure_record_editable,
+    organization_permission_required,
+)
 from apps.common.tenancy import organization_required
 from apps.communications.models import Message
 from apps.customers.models import Contact
@@ -26,6 +32,7 @@ from .timeline import build_communication_timeline
 @organization_required
 @ensure_csrf_cookie
 @never_cache
+@organization_permission_required(OrganizationPermission.VIEW_LEADS)
 def lead_list(request):
     query = request.GET.get("q", "").strip()
     direction = request.GET.get("direction", "")
@@ -47,7 +54,21 @@ def lead_list(request):
         )
     if direction:
         leads = leads.filter(business_direction=direction)
-    columns = [(value, label, leads.filter(status=value)) for value, label in Lead.Status.choices]
+    lead_items = list(leads)
+    for item in lead_items:
+        item.record_editable = can_edit_record(
+            request.user,
+            request.membership,
+            item,
+        )
+    columns = [
+        (
+            value,
+            label,
+            [item for item in lead_items if item.status == value],
+        )
+        for value, label in Lead.Status.choices
+    ]
     return render(
         request,
         "crm/list.html",
@@ -63,7 +84,7 @@ def lead_list(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_LEADS)
+@organization_permission_required(OrganizationPermission.CREATE_LEADS)
 def lead_create(request):
     initial = {}
     cancel_url = "/leads/"
@@ -90,6 +111,10 @@ def lead_create(request):
     if form.is_valid():
         lead = form.save(commit=False)
         lead.organization = request.organization
+        if not can_manage_all_records(request.user, request.membership):
+            lead.assigned_to = request.user
+        elif lead.assigned_to_id is None:
+            lead.assigned_to = request.user
         lead.save()
         messages.success(request, "Lead yaratildi.")
         return redirect("crm:detail", public_id=lead.public_id)
@@ -107,6 +132,7 @@ def lead_create(request):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_LEADS)
 def lead_detail(request, public_id):
     lead = get_object_or_404(
         Lead.objects.select_related(
@@ -154,6 +180,9 @@ def lead_detail(request, public_id):
         "crm/detail.html",
         {
             "lead": lead,
+            "record_editable": can_edit_record(
+                request.user, request.membership, lead
+            ),
             "linked_order": linked_order,
             "orderable_quotation": orderable_quotation,
             "timeline": build_communication_timeline(
@@ -168,13 +197,14 @@ def lead_detail(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_LEADS)
+@organization_permission_required(OrganizationPermission.UPDATE_LEADS)
 def lead_update(request, public_id):
     lead = get_object_or_404(
         Lead,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, lead)
     form = LeadForm(
         request.POST or None,
         instance=lead,
@@ -198,7 +228,7 @@ def lead_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_LEADS)
+@organization_permission_required(OrganizationPermission.UPDATE_LEADS)
 def lead_status_update(request, public_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -222,6 +252,7 @@ def lead_status_update(request, public_id):
             public_id=public_id,
             organization=request.organization,
         )
+        ensure_record_editable(request, lead)
         old_status = lead.status
         if status in {Lead.Status.WON, Lead.Status.LOST}:
             probability = 100 if status == Lead.Status.WON else 0
@@ -297,13 +328,14 @@ def lead_status_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_TASKS)
+@organization_permission_required(OrganizationPermission.CREATE_TASKS)
 def activity_create(request, public_id):
     lead = get_object_or_404(
         Lead,
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, lead)
     form = ActivityForm(
         request.POST or None,
         organization=request.organization,
@@ -314,6 +346,10 @@ def activity_create(request, public_id):
         activity.lead = lead
         activity.customer = lead.customer
         activity.contact = lead.contact
+        if not can_manage_all_records(request.user, request.membership):
+            activity.assigned_to = request.user
+        elif activity.assigned_to_id is None:
+            activity.assigned_to = request.user
         activity.save()
         messages.success(request, "Faoliyat qo'shildi.")
         return redirect("crm:detail", public_id=lead.public_id)
@@ -331,6 +367,7 @@ def activity_create(request, public_id):
 
 @login_required
 @organization_required
+@organization_permission_required(OrganizationPermission.VIEW_TASKS)
 def task_list(request):
     status = request.GET.get("status", "open")
     query = request.GET.get("q", "").strip()
@@ -349,6 +386,13 @@ def task_list(request):
             | Q(customer__name__icontains=query)
             | Q(contact__full_name__icontains=query)
         )
+    tasks = list(tasks)
+    for task in tasks:
+        task.record_editable = can_edit_record(
+            request.user,
+            request.membership,
+            task,
+        )
     now = timezone.now()
     return render(
         request,
@@ -365,7 +409,7 @@ def task_list(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_TASKS)
+@organization_permission_required(OrganizationPermission.CREATE_TASKS)
 def task_create(request):
     initial = {}
     cancel_url = "/tasks/"
@@ -390,6 +434,10 @@ def task_create(request):
     if form.is_valid():
         task = form.save(commit=False)
         task.organization = request.organization
+        if not can_manage_all_records(request.user, request.membership):
+            task.assigned_to = request.user
+        elif task.assigned_to_id is None:
+            task.assigned_to = request.user
         task.save()
         messages.success(request, "Vazifa yaratildi.")
         return redirect("tasks:list")
@@ -407,7 +455,7 @@ def task_create(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_TASKS)
+@organization_permission_required(OrganizationPermission.UPDATE_TASKS)
 def task_complete(request, public_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -416,6 +464,7 @@ def task_complete(request, public_id):
         public_id=public_id,
         organization=request.organization,
     )
+    ensure_record_editable(request, task)
     if task.completed_at is None:
         task.completed_at = timezone.now()
         task.save(update_fields=["completed_at", "updated_at"])

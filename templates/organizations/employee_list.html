@@ -6,15 +6,25 @@
 {% block content %}
 {% include "shared/page_navigation.html" with back_url="/" back_label="Ortga" current_label="Xodimlar" %}
 <nav class="section-tabs">
-    <a href="{% url 'organizations:settings' %}">Rekvizitlar</a>
+    {% if request.crm_permissions.update_organization %}<a href="{% url 'organizations:settings' %}">Rekvizitlar</a>{% endif %}
     <a class="active" href="{% url 'organizations:employees' %}">Xodimlar</a>
+    {% if request.membership.role == "owner" or request.user.is_superuser %}
+    <a href="{% url 'organizations:roles' %}">Rollar va ruxsatlar</a>
+    {% endif %}
 </nav>
 <section class="page-actions">
     <form method="get" class="search">
         <input type="search" name="q" value="{{ query }}" placeholder="Ism, email yoki telefon">
         <select name="role">
             <option value="">Barcha lavozimlar</option>
-            {% for value, label in role_choices %}<option value="{{ value }}"{% if role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            <optgroup label="Standart rollar">
+                {% for value, label in builtin_role_choices %}<option value="{{ value }}"{% if role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </optgroup>
+            {% if custom_role_choices %}
+            <optgroup label="Maxsus rollar">
+                {% for value, label in custom_role_choices %}<option value="{{ value }}"{% if role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </optgroup>
+            {% endif %}
         </select>
         <select name="status">
             <option value="">Barcha holatlar</option>
@@ -23,7 +33,7 @@
         </select>
         <button class="button button-secondary" type="submit">Qidirish</button>
     </form>
-    <a class="button" href="{% url 'organizations:employee-create' %}">+ Xodim qo'shish</a>
+    {% if request.crm_permissions.create_organization %}<a class="button" href="{% url 'organizations:employee-create' %}">+ Xodim qo'shish</a>{% endif %}
 </section>
 <section class="panel">
     <div class="table-wrap">
@@ -31,7 +41,7 @@
             <thead><tr><th>Xodim</th><th>Telefon</th><th>Lavozim</th><th>Filial</th><th>Holati</th><th></th></tr></thead>
             <tbody>
             {% for membership in page %}
-                <tr>
+                <tr class="employee-row">
                     <td>
                         <div class="employee-person">
                             {% if membership.user.avatar %}<img src="{{ membership.user.avatar.url }}" alt="{{ membership.user.get_full_name|default:membership.user.email }} avatari">{% else %}<span aria-hidden="true">{{ membership.user.get_full_name|default:membership.user.email|first|upper }}</span>{% endif %}
@@ -39,10 +49,22 @@
                         </div>
                     </td>
                     <td>{{ membership.user.phone|default:"—" }}</td>
-                    <td>{{ membership.get_role_display }}</td>
+                    <td>{{ membership.role_name }}</td>
                     <td>{{ membership.branch|default:"—" }}</td>
                     <td>{% if membership.is_active %}<span class="badge badge-success">Faol</span>{% else %}<span class="badge badge-danger">Bloklangan</span>{% endif %}</td>
-                    <td><a class="table-link" href="{% url 'organizations:employee-update' membership.public_id %}">Tahrirlash</a></td>
+                    <td>
+                        <div class="employee-row-actions">
+                            {% if membership.is_active and membership.user_id != request.user.id %}
+                            <form method="post" action="{% url 'communications:team-start' membership.public_id %}">
+                                {% csrf_token %}
+                                <button class="employee-message-button" type="submit" title="{{ membership.user.get_full_name|default:membership.user.email }}ga xabar yuborish" aria-label="{{ membership.user.get_full_name|default:membership.user.email }}ga xabar yuborish">
+                                    {% include "shared/icon.html" with name="messages" %}
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if request.crm_permissions.update_organization %}<a class="table-link" href="{% url 'organizations:employee-update' membership.public_id %}">Tahrirlash</a>{% endif %}
+                        </div>
+                    </td>
                 </tr>
             {% empty %}
                 <tr><td colspan="6" class="empty">Xodim topilmadi.</td></tr>

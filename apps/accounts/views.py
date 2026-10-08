@@ -10,7 +10,7 @@ from django.urls import reverse_lazy
 from apps.common.permissions import OrganizationPermission, organization_permission_required
 from apps.common.tenancy import organization_required
 
-from .forms import MailboxAccountForm
+from .forms import MailboxAccountForm, ProfileForm
 from .models import MailboxAccount
 from .services import MailboxConnectionError, test_mailbox_connection
 
@@ -37,6 +37,29 @@ def password_change(request):
     )
 
 
+@login_required
+def profile(request):
+    form = ProfileForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=request.user,
+    )
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Profil ma'lumotlari saqlandi.")
+        return redirect("accounts:profile")
+    return render(
+        request,
+        "shared/form.html",
+        {
+            "form": form,
+            "page_title": "Profilim",
+            "cancel_url": "/",
+            "submit_label": "Profilni saqlash",
+        },
+    )
+
+
 class AccountPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = "registration/password_reset_confirm.html"
     success_url = reverse_lazy("password-reset-complete")
@@ -50,7 +73,7 @@ class AccountPasswordResetConfirmView(PasswordResetConfirmView):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_MAILBOX)
+@organization_permission_required(OrganizationPermission.VIEW_MAILBOX)
 def mailbox_list(request):
     accounts = MailboxAccount.objects.filter(
         organization=request.organization,
@@ -65,7 +88,7 @@ def mailbox_list(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_MAILBOX)
+@organization_permission_required(OrganizationPermission.CREATE_MAILBOX)
 def mailbox_create(request):
     form = MailboxAccountForm(request.POST or None)
     if form.is_valid():
@@ -95,7 +118,7 @@ def mailbox_create(request):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_MAILBOX)
+@organization_permission_required(OrganizationPermission.UPDATE_MAILBOX)
 def mailbox_update(request, public_id):
     account = get_object_or_404(
         MailboxAccount,
@@ -123,7 +146,7 @@ def mailbox_update(request, public_id):
 
 @login_required
 @organization_required
-@organization_permission_required(OrganizationPermission.MANAGE_MAILBOX)
+@organization_permission_required(OrganizationPermission.UPDATE_MAILBOX)
 def mailbox_test(request, public_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])

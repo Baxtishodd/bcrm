@@ -1,0 +1,56 @@
+<section class="email-compose-window" data-email-compose-window role="dialog" aria-modal="false" aria-labelledby="email-compose-title">
+    <form method="post" action="{% url 'communications:email-compose' %}" enctype="multipart/form-data" data-email-compose novalidate>
+        {% csrf_token %}
+        {{ form.body }}
+        {{ form.body_html }}
+        {{ form.quotation }}
+        <input type="hidden" name="send_mode" value="individual">
+        <header class="email-compose-header">
+            <strong id="email-compose-title">Yangi xat</strong>
+            <div class="email-compose-window-actions">
+                <button type="button" data-email-minimize aria-label="Kichraytirish" title="Kichraytirish">—</button>
+                <button type="button" data-email-maximize aria-label="Kattalashtirish" title="Kattalashtirish">□</button>
+                <button type="button" data-email-close aria-label="Yopish" title="Yopish">×</button>
+            </div>
+        </header>
+        <div class="email-compose-errors" data-email-errors{% if not form.errors %} hidden{% endif %}>
+            {% for field, errors in form.errors.items %}{% for error in errors %}<span>{{ error }}</span>{% endfor %}{% endfor %}
+        </div>
+        <div class="email-compose-fields">
+            <label class="email-compose-row email-compose-from"><span>Kimdan</span>{{ form.mailbox }}</label>
+            <div class="email-compose-row email-compose-recipient-row">
+                <span>Kimga</span>{{ form.to }}
+                <div class="email-copy-toggles">
+                    <button type="button" data-email-copy-toggle="cc">Cc</button>
+                    <button type="button" data-email-copy-toggle="bcc">Bcc</button>
+                </div>
+            </div>
+            <datalist id="email-contact-options">
+                {% for contact in contacts %}<option value="{{ contact.email }}">{{ contact.full_name }}{% if contact.company %} · {{ contact.company.name }}{% endif %}</option>{% endfor %}
+            </datalist>
+            <label class="email-compose-row email-copy-row" data-email-copy-row="cc"{% if not form.cc.value %} hidden{% endif %}><span>Cc</span>{{ form.cc }}</label>
+            <label class="email-compose-row email-copy-row" data-email-copy-row="bcc"{% if not form.bcc.value %} hidden{% endif %}><span>Bcc</span>{{ form.bcc }}</label>
+            <label class="email-compose-row email-compose-subject"><span class="sr-only">Mavzu</span>{{ form.subject }}</label>
+        </div>
+        <div class="email-editor-shell">
+            <div class="email-editor-toolbar" role="toolbar" aria-label="Matn formatlash">
+                <button type="button" data-editor-command="bold" aria-label="Qalin" title="Qalin"><strong>B</strong></button>
+                <button type="button" data-editor-command="italic" aria-label="Qiya" title="Qiya"><em>I</em></button>
+                <button type="button" data-editor-command="underline" aria-label="Tagi chizilgan" title="Tagi chizilgan"><u>U</u></button>
+                <span aria-hidden="true"></span>
+                <button type="button" data-editor-command="insertUnorderedList" aria-label="Ro‘yxat" title="Ro‘yxat">•≡</button>
+                <button type="button" data-editor-command="insertOrderedList" aria-label="Raqamlangan ro‘yxat" title="Raqamlangan ro‘yxat">1.</button>
+                <button type="button" data-editor-link aria-label="Havola" title="Havola">↗</button>
+                <button type="button" data-editor-command="removeFormat" aria-label="Formatni tozalash" title="Formatni tozalash">Tx</button>
+            </div>
+            <div class="email-editor" contenteditable="true" role="textbox" aria-multiline="true" data-email-editor data-placeholder="Xabar yozing...">{{ form.body.value|default:""|linebreaksbr }}</div>
+        </div>
+        {% if quotation %}<div class="email-context-file">{% include "shared/icon.html" with name="sales" %}<span>{{ quotation.number }}.pdf</span></div>{% endif %}
+        <div class="email-attachment-list" data-attachment-list></div>
+        <footer class="email-compose-footer">
+            <button class="button email-send-button" type="submit"{% if not form.mailbox.field.queryset.exists %} disabled{% endif %}><span data-email-send-label>Yuborish</span><span class="button-spinner" aria-hidden="true"></span></button>
+            <label class="email-attach-button" title="Fayl biriktirish" aria-label="Fayl biriktirish"><span aria-hidden="true">📎</span>{{ form.attachments }}</label>
+            <button class="email-discard-button" type="button" data-email-discard aria-label="Qoralamani o‘chirish" title="Qoralamani o‘chirish">{% include "shared/icon.html" with name="trash" %}</button>
+        </footer>
+    </form>
+</section>

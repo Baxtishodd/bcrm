@@ -26,7 +26,7 @@
         </select>
         <button class="button button-secondary" type="submit">Filtrlash</button>
     </form>
-    {% if request.crm_permissions.manage_catalog %}<a class="button" href="{% url 'catalog:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi mahsulot</span></a>{% endif %}
+    {% if request.crm_permissions.create_catalog %}<a class="button" href="{% url 'catalog:create' %}">{% include "shared/icon.html" with name="plus" %}<span>Yangi mahsulot</span></a>{% endif %}
 </section>
 <section class="panel">
     <div class="panel-heading">
@@ -43,7 +43,7 @@
             <tr {% if product.price_is_expired %}class="row-overdue"{% endif %}>
                 <td><a class="table-link" href="{% url 'catalog:detail' product.public_id %}">{{ product.article }} — {{ product.name }}</a><br><small>{{ product.get_category_display }}</small></td>
                 <td>{{ product.fabric|default:product.description|default:"—" }}{% if product.yarn_count %} · {{ product.yarn_count }}{% endif %}{% if product.get_fabric_form_display %} · {{ product.get_fabric_form_display }}{% endif %}</td>
-                <td><span class="badge">{{ product.get_availability_display }}</span></td>
+                <td><span class="badge badge-status-{{ product.availability }}">{{ product.get_availability_display }}</span></td>
                 <td>{{ product.stock_quantity }} {{ product.unit }}</td>
                 <td><strong>{{ product.list_price }} {{ product.price_currency }}/{{ product.unit }}</strong><br><small>{{ product.delivery_basis }}</small></td>
                 <td>{{ product.price_valid_until|date:"d.m.Y"|default:"Cheklanmagan" }}{% if product.price_is_expired %}<br><span class="badge badge-danger">Muddati tugagan</span>{% endif %}</td>

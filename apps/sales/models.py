@@ -297,12 +297,20 @@ class SalesOrder(OrganizationScopedModel):
         return max(self.total - self.paid_amount, Decimal("0"))
 
     @property
-    def payment_status(self):
+    def payment_status_code(self):
         if self.total and self.paid_amount >= self.total:
-            return "To'langan"
+            return "paid"
         if self.paid_amount > 0:
-            return "Qisman to'langan"
-        return "To'lanmagan"
+            return "partial"
+        return "unpaid"
+
+    @property
+    def payment_status(self):
+        return {
+            "paid": "To'langan",
+            "partial": "Qisman to'langan",
+            "unpaid": "To'lanmagan",
+        }[self.payment_status_code]
 
     @property
     def currency(self):
@@ -363,16 +371,26 @@ class PaymentPlan(OrganizationScopedModel):
         return max(self.amount - self.received_amount, Decimal("0"))
 
     @property
-    def payment_status(self):
+    def payment_status_code(self):
         if self.is_cancelled:
-            return "Bekor qilingan"
+            return "cancelled"
         if self.received_amount >= self.amount:
-            return "To'langan"
+            return "paid"
         if self.received_amount > 0:
-            return "Qisman to'langan"
+            return "partial"
         if self.due_date < timezone.localdate():
-            return "Muddati o'tgan"
-        return "Rejada"
+            return "overdue"
+        return "planned"
+
+    @property
+    def payment_status(self):
+        return {
+            "cancelled": "Bekor qilingan",
+            "paid": "To'langan",
+            "partial": "Qisman to'langan",
+            "overdue": "Muddati o'tgan",
+            "planned": "Rejada",
+        }[self.payment_status_code]
 
     def clean(self):
         super().clean()
