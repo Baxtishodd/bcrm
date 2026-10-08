@@ -86,7 +86,7 @@ tashkilot ma'lumotiga kirib bo'lmaydi va avtomatik testlar muvaffaqiyatli o'tadi
 - [x] Taklifni sotuvchining tanlangan shaxsiy SMTP akkauntidan yuborish.
 - [x] Mijoz bilan aloqa tarixini yagona timeline'da ko'rsatish.
 - [x] Yuborilgan taklif uchun avtomatik follow-up vazifasi yaratish.
-- [ ] IMAP orqali kiruvchi xatlarni sinxronlash va Lead bilan bog'lash.
+- [x] IMAP orqali kiruvchi xatlarni sinxronlash va Lead bilan bog'lash.
 - [ ] Telegram va WhatsApp integratsiyasining xavfsiz usulini aniqlash.
 
 **Tayyorlik mezoni:** sotuvchi kamida email yuborilishini CRM'da qayd etadi,
@@ -116,7 +116,7 @@ lavozimiga ruxsat berilgan amallarni bajaradi va bloklanganda tizimdan chiqadi.
 
 - [x] Ertangi sprint natijalarini brauzerda qayta tekshirish.
 - [x] `ROADMAP.md` belgilari va keyingi ustuvor vazifalarni yangilash.
-- [ ] Alohida tasdiqdan keyin commit va GitHub'ga push qilish.
+- [x] Alohida tasdiqdan keyin commit va GitHub'ga push qilish.
 
 ## Sprint — 2026-yil 2-oktyabr
 
@@ -154,13 +154,60 @@ mustaqil CRM kontakti sifatida ham boshqarish.
 kompaniyasiz ham kontakt sifatida saqlanadi; undan Lead va vazifa yaratiladi,
 barcha aloqa tarixi yagona profilda ko'rinadi.
 
+## Sprint — 2026-yil 8-oktyabr
+
+Sprint maqsadi: xodimlar vakolatini aniq chegaralash, har bir tijorat
+yozuvini mas'ul xodimga bog'lash va kommunikatsiya hamda boshqaruv
+interfeyslarini yakunlash.
+
+### P0 — Granular rollar va yozuv egaligi
+
+- [x] Rollar uchun modul kesimida ko'rish, yaratish, tahrirlash va o'chirish
+  ruxsatlarini alohida boshqarish.
+- [x] Mijoz, kontakt, Lead, vazifa, taklif, buyurtma, to'lov rejasi va tushumni
+  mas'ul yoki yaratuvchi xodim bo'yicha himoyalash.
+- [x] Oddiy xodimga boshqa xodim yozuvlarini HTML sahifalari va API orqali
+  o'zgartirishni taqiqlash.
+- [x] Belgilangan xodimga barcha xodimlarning yozuvlarini boshqarish huquqini
+  profilidan berish.
+- [x] Yangi yozuvlarni yaratuvchi xodimga avtomatik biriktirish.
+- [x] Begona yozuvlarda tahrirlash, Kanban ko'chirish va moliyaviy amal
+  tugmalarini yashirish.
+- [x] Email orqali taklif yuborish va taklifdan buyurtma yaratish kabi chetlab
+  o'tish yo'llarini ham backend darajasida yopish.
+- [x] Migratsiya, API va regressiya testlarini bajarish.
+
+**Tayyorlik mezoni:** xodim faqat o'ziga biriktirilgan tijorat yozuvlarini
+o'zgartiradi; tashkilot egasi yoki maxsus vakolat berilgan xodimgina barcha
+yozuvlarni boshqara oladi.
+
+### P1 — Kommunikatsiya va interfeysni yakunlash
+
+- [x] Kiruvchi email xatlarini suhbat, kontakt, mijoz va Lead bilan bog'lash.
+- [x] Taklif PDF faylini umumiy email yozish oynasidan yuborish.
+- [x] Ichki jamoa chatlarini mijozlar xabarlaridan ajratish va takroriy
+  suhbatlarni birlashtirish.
+- [x] Sidebar, foydalanuvchi menyusi va sahifa harakatlarini yaxshilash.
+- [x] Dashboardga KPI, davriy taqqoslash va savdo trendlarini qo'shish.
+
+**Tayyorlik mezoni:** sotuvchi email va ichki suhbatlarni bitta izchil oqimda
+boshqaradi, rahbar esa yangilangan dashboard orqali savdo holatini kuzatadi.
+
+### Sprint yakuni
+
+- [x] 153 ta CRM, savdo, xodimlar va kommunikatsiya regressiya testini
+  muvaffaqiyatli o'tkazish.
+- [x] Qo'shimcha egalik, Kanban va vazifa testlarini muvaffaqiyatli o'tkazish.
+- [x] Migratsiyalarni asosiy bazaga qo'llash.
+- [x] O'zgarishlarni `main` branchiga commit va push qilish.
+
 ## Keyingi bosqichlar
 
 ### Savdo va kommunikatsiya
 
 - [x] Email orqali taklif yuborish va yuborilgan vaqtni qayd qilish.
 - [x] Sotuvchining shaxsiy IMAP va SMTP akkauntini xavfsiz ulash.
-- [ ] IMAP orqali kiruvchi javoblarni avtomatik sinxronlash.
+- [x] IMAP orqali kiruvchi javoblarni avtomatik sinxronlash.
 - [ ] Telegram va WhatsApp uchun xavfsiz integratsiya variantini tanlash.
 - [x] Mijoz bilan barcha aloqalarni yagona timeline'da ko'rsatish.
 - [x] Follow-up vazifalarini avtomatik yaratish.
@@ -174,7 +221,7 @@ barcha aloqa tarixi yagona profilda ko'rinadi.
 
 - [x] Price-list va product-list uchun logotipli PDF hamda hujjat muharriri.
 - [x] Tayyor kiyim-kechak kategoriyasi va Product List'da o'lcham/rang matritsasini yakunlash.
-- [ ] Price-list versiyalari va amal qilish muddatlarini boshqarish.
+- [x] Price-list versiyalari va amal qilish muddatlarini boshqarish.
 - [ ] Mijoz, bozor va hajm bo'yicha individual narx qoidalarini qo'shish.
 - [ ] Ombor qoldig'i va ishlab chiqarish muddati bilan integratsiya qilish.
 
@@ -190,6 +237,7 @@ barcha aloqa tarixi yagona profilda ko'rinadi.
   KPI va 12 oylik trend grafiklarini valyutalar kesimida ko'rsatish.
 - [ ] Moliyaviy hisobotlarni Excel va PDF formatida eksport qilish.
 - [x] Rollar va amallar bo'yicha batafsil ruxsat tizimini qo'shish.
+- [x] Xodimlararo yozuv egaligi va maxsus umumiy boshqaruv huquqini qo'shish.
 
 ## Ishlash tartibi
 
